@@ -45,10 +45,12 @@ const SHOW_SHADE = true;
  * glowing round them. */
 const LETTERING_SHADOW_RADIUS = 2.5;
 const LETTERING_SHADOW_OFFSET = { width: 0, height: 0.75 };
-/** The era name's drop: the photo slides' (4 blur, 1 down on screen), taken
- * into the cover's layout by a 390pt phone's scale. */
-const ERA_SHADOW_RADIUS = (4 * COVER_WIDTH) / 390;
-const ERA_SHADOW_OFFSET = { width: 0, height: COVER_WIDTH / 390 };
+/** The photo slides' faint drop (4 blur, 1 down on screen), taken into the
+ * cover's layout by a 390pt phone's scale — under the era name and the
+ * wordmark. The wordmark on a slide is scaled up whole, its drop with it,
+ * so the same numbers land the same there too. */
+const SLIDE_SHADOW_RADIUS = (4 * COVER_WIDTH) / 390;
+const SLIDE_SHADOW_OFFSET = { width: 0, height: COVER_WIDTH / 390 };
 /** The era's name drawn up under the day: the script's line box leaves
  * room under its letters, and the name reads as the day's own when it
  * sits close. */
@@ -229,7 +231,7 @@ export function DayCover({
                   variant="coverEra"
                   color={colors.onMedia}
                   numberOfLines={1}
-                  style={[styles.eraShadow, styles.centred, styles.era]}
+                  style={[styles.slideShadow, styles.centred, styles.era]}
                 >
                   {kicker}
                 </Text>
@@ -262,7 +264,7 @@ export function CoverMark({ width }: { width?: number }) {
       <Text
         variant="coverMark"
         color={colors.onMedia}
-        style={[styles.mark, scale !== 1 && { transform: [{ scale }] }]}
+        style={[styles.mark, styles.slideShadow, scale !== 1 && { transform: [{ scale }] }]}
       >
         {/* All lower case, as a wordmark rather than the app's name in a
             sentence. */}
@@ -298,10 +300,10 @@ const styles = StyleSheet.create({
   },
   // The slides' own faint drop, scaled into the cover's layout like the
   // type it sits under.
-  eraShadow: {
+  slideShadow: {
     textShadowColor: colors.shotStampShadow,
-    textShadowOffset: ERA_SHADOW_OFFSET,
-    textShadowRadius: ERA_SHADOW_RADIUS,
+    textShadowOffset: SLIDE_SHADOW_OFFSET,
+    textShadowRadius: SLIDE_SHADOW_RADIUS,
   },
   centred: {
     textAlign: 'center',
