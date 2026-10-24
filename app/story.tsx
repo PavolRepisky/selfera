@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DayCover } from '@/components/DayCover';
+import { DayCover, POST_RATIO } from '@/components/DayCover';
 import { LOCK_BLUR_RADIUS } from '@/components/FriendCard';
 import { LiquidGlassGroup } from '@/components/GlassSurface';
-import { IconButton } from '@/components/IconButton';
-import { Pill, pillHeights } from '@/components/Pill';
+import { IconButton, headerButtonSize, headerIconSize } from '@/components/IconButton';
+import { Pill } from '@/components/Pill';
 import { Placeholder } from '@/components/Placeholder';
 import { PostHeader } from '@/components/PostHeader';
+import { ShotStamp } from '@/components/ShotStamp';
 import { Text } from '@/components/Text';
 import { absoluteFill, colors, layout, radii, shadows, spacing } from '@/constants/theme';
 import { LOVE } from '@/data/content';
@@ -27,12 +28,12 @@ const STORY_MS = 5000;
 const HOLD_MS = 200;
 /** The queue's name for your own story; everyone else goes by their id. */
 const ME = 'me';
-/** The close glyph at the end of the header. */
-const CLOSE_ICON = 26;
+/** The heart in the like button, a step over the close button's glyph
+ * size: at the same number the heart read as the smaller of the two, so it
+ * is drawn up to sit level with the cross beside it. */
+const HEART_ICON = Math.round(headerIconSize * 1.15);
 /** Where a like's burst of hearts sets off from, above the foot. */
 const BURST_START = 44;
-/** The heart button's glyph inside its circle. */
-const HEART_ICON = 20;
 /** How many hearts rise on a like, how long each takes, and how far apart
  * they set off — a burst, not a single sticker. */
 const BURST_COUNT = 8;
@@ -327,6 +328,7 @@ export default function StoryScreen() {
               day={viewing}
               totalDays={eraLength(person?.challengeId ?? challenge.id)}
               kicker={person?.challengeName ?? challenge.name}
+              ratio={1 / POST_RATIO}
             />
           </Pressable>
           <Pill
@@ -350,6 +352,10 @@ export default function StoryScreen() {
       ) : (
         <Placeholder seed={current.seed} radius={0} style={absoluteFill} />
       )}
+
+      {/* When it was shot over what it proves, set as on the post's own
+          photo slides. Not over a locked story or the post frame. */}
+      {footShown ? <ShotStamp time={current.time} label={current.label} /> : null}
 
       {/* A locked post's own wash. Its pill sits above the tap zones,
           further down, so it can be pressed. */}
@@ -387,7 +393,6 @@ export default function StoryScreen() {
         <PostHeader
           avatar={person ? person.avatar : (profile.avatar ?? profile.avatarSeed)}
           name={person ? person.name : profile.name}
-          time={current.time ?? undefined}
           day={viewing}
           challengeName={person?.challengeName ?? challenge.name}
           done={taskDone}
@@ -396,15 +401,18 @@ export default function StoryScreen() {
           onPressProfile={openProfile}
           onPressChallenge={openChallenge}
           accessory={
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            // The round glass button every other header wears, so the way
+            // out reads as the same control it is everywhere else.
+            <IconButton
+              name="close"
+              size={headerButtonSize}
+              iconSize={headerIconSize}
+              background={colors.surface}
+              overMedia
               onPress={() => router.back()}
-              hitSlop={12}
+              accessibilityLabel="Close"
               style={styles.close}
-            >
-              <Ionicons name="close" size={CLOSE_ICON} color={colors.onMedia} />
-            </Pressable>
+            />
           }
           style={styles.head}
         />
@@ -450,29 +458,21 @@ export default function StoryScreen() {
         />
       </View>
 
-      {/* Which task this photo proves, in the white pill a story's labels
-          wear, and a round button of the same white for the quick
-          reactions. Neither over a locked story, nor over the post frame at
-          the end, which carries its own way through. */}
+      {/* A round white button for the like, in the bottom right. Not over a
+          locked story, nor over the post frame at the end, which carries
+          its own way through. */}
       {stories.length ? (
-        // One material on the iPhone's glass, the pill and the button, and
-        // kept mounted so they dissolve over a locked story or the post frame
-        // and condense again after it.
+        // Kept mounted, so on the iPhone's glass it dissolves over a locked
+        // story or the post frame and condenses again after it.
         <LiquidGlassGroup
           pointerEvents="box-none"
           style={[styles.foot, { paddingBottom: insets.bottom + spacing.md }]}
         >
-          <Pill
-            tone="floating"
-            overMedia
-            label={current.label}
-            bold
-            visible={footShown}
-            style={styles.task}
-          />
           <IconButton
             name={myReaction ? 'heart' : 'heart-outline'}
-            size={pillHeights.md}
+            // A page header's button size, as the close button is, so the
+            // two round buttons over the story read as one set.
+            size={headerButtonSize}
             iconSize={HEART_ICON}
             background={colors.surface}
             // Filled red once liked — liked at a glance, and still the way
@@ -524,7 +524,7 @@ export default function StoryScreen() {
                 },
               ]}
             >
-              <Ionicons name="heart" size={BURST_HEART} color={colors.onMedia} />
+              <Ionicons name="heart" size={BURST_HEART} color={colors.liked} />
             </Animated.View>
           ))}
         </View>
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   close: {
     marginLeft: layout.inline,
   },
-  // The task and the reactions button on one line along the bottom, clear
+  // The like button in the bottom right corner, clear
   // of the home indicator, over the tap zones so pressing them doesn't skip
   // the story.
   foot: {
@@ -591,22 +591,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: layout.inline,
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.lg,
     zIndex: 2,
-  },
-  // Gives way before the button does, so a long task name shortens rather
-  // than pushing it off the row. Centred on the row: a `Pill` otherwise pins
-  // itself to the top of it, a step above the button beside it.
-  task: {
-    flexShrink: 1,
-    alignSelf: 'center',
   },
   bursts: {
     zIndex: 4,
   },
-  // White over the story, lifted off it by the soft shadow.
+  // The red of a heart left, lifted off the story by the soft shadow.
   burst: {
     position: 'absolute',
     ...shadows.soft,
@@ -639,10 +631,12 @@ const styles = StyleSheet.create({
     gap: spacing['2xl'],
     zIndex: 2,
   },
-  // Square, like the post's own grid in the feed.
+  // The post's own cover as Community shows it, upright at the post's 3:4,
+  // held inside the frame's side padding and rounded as a card lifted off
+  // the story rather than the post laid flat in a feed.
   summaryGrid: {
     alignSelf: 'stretch',
-    aspectRatio: 1,
+    aspectRatio: POST_RATIO,
     borderRadius: radii.md,
     overflow: 'hidden',
   },

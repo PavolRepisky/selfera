@@ -59,6 +59,8 @@ interface SocialState {
   toggleRequest: (userId: string) => void;
   accept: (userId: string) => void;
   decline: (userId: string) => void;
+  /** Ends a friendship — the same call that takes a request back. */
+  unfriend: (userId: string) => void;
 }
 
 /**
@@ -317,16 +319,29 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [changeRelation],
   );
 
+  const unfriend = useCallback(
+    (id: string) =>
+      changeRelation(
+        (r) => {
+          const friends = new Set(r.friends);
+          friends.delete(id);
+          return { ...r, friends, friendList: r.friendList.filter((p) => p.id !== id) };
+        },
+        () => social.unfriend(id),
+      ),
+    [changeRelation],
+  );
+
   const value = useMemo<SocialState>(
     () => ({
       friends, members, roundSize, loaded, failed, relations, stats, seen,
       refreshToday, person, page, loadPage, ensureStats, react, love, thread, comment, markSeen,
-      toggleRequest, accept, decline,
+      toggleRequest, accept, decline, unfriend,
     }),
     [
       friends, members, roundSize, loaded, failed, relations, stats, seen,
       refreshToday, person, page, loadPage, ensureStats, react, love, thread, comment, markSeen,
-      toggleRequest, accept, decline,
+      toggleRequest, accept, decline, unfriend,
     ],
   );
 
@@ -337,6 +352,16 @@ export function useSocial(): SocialState {
   const ctx = useContext(SocialContext);
   if (!ctx) throw new Error('useSocial must be used inside <SocialProvider>');
   return ctx;
+}
+
+/** One empty set for every reader outside the provider. */
+const NONE_SEEN: ReadonlySet<string> = new Set();
+
+/** Photos you've already seen, by completion id — what a ring fades. Empty
+ * outside `SocialProvider` rather than throwing, so a ring drawn anywhere
+ * can ask. */
+export function useSeen(): ReadonlySet<string> {
+  return useContext(SocialContext)?.seen ?? NONE_SEEN;
 }
 
 /** Where you stand with someone, read off the relations the store holds. */

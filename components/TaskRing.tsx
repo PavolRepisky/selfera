@@ -10,6 +10,7 @@ import {
 import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
 import { colors, gradients, layout, radii, shadows, colorsFor } from '@/constants/theme';
+import { useSeen } from '@/hooks/useSocial';
 import { Avatar, type AvatarSource } from './Avatar';
 import { Text } from './Text';
 
@@ -81,9 +82,16 @@ export interface TaskRingProps {
   avatar: AvatarSource;
   done: number;
   total: number;
-  /** How many of the done segments you've already watched as stories —
-   * they're drawn in a faded accent. */
-  watched?: number;
+  /**
+   * The completion ids of the day's photos. The ones you've already seen as
+   * a story are counted off the social store here, so every ring that's
+   * handed its photos fades what's been watched the same way, wherever it
+   * is drawn.
+   */
+  photos?: readonly (string | null | undefined)[];
+  /** Your own ring: nothing in your own photos is new to you, so every done
+   * segment is drawn as watched. */
+  mine?: boolean;
   /** Outer diameter, ring included. */
   size: number;
   /** The "3/5" across the ring's bottom. Off where the ring is too small to
@@ -123,7 +131,8 @@ export function TaskRing({
   avatar,
   done,
   total,
-  watched = 0,
+  photos,
+  mine = false,
   size,
   badge = true,
   look = 'story',
@@ -138,6 +147,12 @@ export function TaskRing({
   const svgColors = colorsFor(useColorScheme());
   // Unique per ring, so two profile rings on one screen don't share a mask.
   const maskId = `ringDone${useId().replace(/[^A-Za-z0-9]/g, '')}`;
+  // The watched segments lead from the top, the way the ring fills.
+  const seen = useSeen();
+  const watched = Math.min(
+    done,
+    mine ? done : (photos ?? []).filter((id) => id && seen.has(id)).length,
+  );
 
   if (look === 'profile') {
     const band = PROFILE_STROKE * strokeScale;
@@ -150,13 +165,14 @@ export function TaskRing({
     const segGap = face * PROFILE_SEGMENT_GAP;
     const canvas = size + SVG_BLEED * 2;
     const centre = canvas / 2;
-    const segment = (i: number, colour: string) => (
+    const segment = (i: number, colour: string, opacity = 1) => (
       <Circle
         key={i}
         cx={centre}
         cy={centre}
         r={r}
         stroke={colour}
+        strokeOpacity={opacity}
         strokeWidth={stroke}
         strokeLinecap={count > 1 ? 'round' : 'butt'}
         fill="none"
@@ -176,8 +192,10 @@ export function TaskRing({
         <Svg width={canvas} height={canvas} style={styles.ring}>
           <Defs>
             <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={canvas} height={canvas}>
+              {/* A watched segment lets the sweep through at the faded
+                  strength, so it keeps its accent, quieter. */}
               {Array.from({ length: Math.min(done, count) }, (_, i) =>
-                segment(i, svgColors.onMedia),
+                segment(i, svgColors.onMedia, i < watched ? WATCHED_OPACITY : 1),
               )}
             </Mask>
           </Defs>
@@ -240,7 +258,7 @@ export function TaskRing({
             cy={centre}
             r={radius}
             stroke={i < done ? accentAt((i + 0.5) / count) : svgColors.inkGhost}
-            strokeOpacity={i < Math.min(watched, done) ? WATCHED_OPACITY : 1}
+            strokeOpacity={i < watched ? WATCHED_OPACITY : 1}
             strokeWidth={ringWidth}
             strokeLinecap={count > 1 ? 'round' : 'butt'}
             fill="none"

@@ -1,12 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Share, StyleSheet, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { Pill } from '@/components/Pill';
 import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
@@ -15,9 +12,8 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SwipeRow } from '@/components/SwipeRow';
 import { SearchBar } from '@/components/SearchBar';
 import { Text } from '@/components/Text';
-import { colors, layout, radii, shadows, colorsFor, tapSlop, type } from '@/constants/theme';
+import { colors, layout, tapSlop, type } from '@/constants/theme';
 import { type Friend } from '@/data/content';
-import { useApp } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { fetchSuggestions, searchPeople, type Suggestion } from '@/lib/backend/social';
 
@@ -33,9 +29,6 @@ function mutualLabel(faces: readonly Friend[], count: number) {
   return more > 0 ? `${names} + ${more} more` : names;
 }
 
-/** The same code held up in its sheet: big enough to scan from a phone
- * held across a table, with room left for the title above it. */
-const CODE_SHEET_SIZE = 220;
 /** A suggestion's face — a step over a post's, since the row is the person. */
 const ROW_AVATAR = 52;
 /** The mutual friends' faces under a suggestion's handle: small enough to
@@ -45,26 +38,16 @@ const MUTUAL_AVATAR = 18;
 const MUTUAL_OVERLAP = 8;
 /** The white ring that keeps overlapping faces apart. */
 const MUTUAL_RING = 2;
-/** The invite card's glyph tile and the code glyph in it, off the canvas's
- * board. */
-const HERO_TILE = 56;
-const HERO_GLYPH = 30;
 /** The dismiss cross: quiet beside the Add pill, so it reads as a way out
  * rather than a second action. */
 const DISMISS_GLYPH = 16;
 /** Suggestions shown before See all opens the rest. */
 const SUGGESTION_PEEK = 4;
-/** The rule between suggestions — one pixel of the fill grey, as the canvas
- * draws it. */
-const ROW_RULE = 1;
 
 /**
  * Finding people to do it with, opened from Community's corner button and
  * laid out the way the canvas's "16 Better · Find friends" board is: a
- * search, a dark invite card that brings someone into your challenge, then
- * suggestions. The card's Share link and its code both carry a link to the
- * challenge's own page, where its Join button is; Share opens the system
- * share sheet, where every messaging app already is.
+ * search, then the people — no invite card, which was dropped from the page.
  *
  * Anyone who has asked to be your friend comes first, under Requests, with
  * Accept and a cross to turn it down. Suggestions are friends of your
@@ -77,10 +60,8 @@ const ROW_RULE = 1;
  */
 export default function AddFriendsScreen() {
   const router = useRouter();
-  const { challenge, inChallenge } = useApp();
   const { relations, members, refreshToday, toggleRequest, accept, decline } = useSocial();
   const [query, setQuery] = useState('');
-  const [codeOpen, setCodeOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   // Set aside for this visit only — nothing remembers a "not now" yet.
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
@@ -117,16 +98,7 @@ export default function AddFriendsScreen() {
   }, [friendsOfFriends, members, dismissed, relations.friends, relations.incoming]);
   const shownSuggestions = showAll ? suggestions : suggestions.slice(0, SUGGESTION_PEEK);
 
-  // The challenge's own page, where its Join button is — what a scan or a
-  // tapped invite opens.
-  const joinUrl = Linking.createURL(`feed/${challenge.id}`);
   const requests = relations.incoming;
-  // The invite goes to the system share sheet, which is where each
-  // messaging app actually lives.
-  const invite = () =>
-    Share.share({
-      message: `Join me in ${challenge.name} on Selfera: ${joinUrl}`,
-    }).catch(() => {});
 
   // A search is its own list, not a filter on the suggestions: it looks
   // through every account — friends included, so a name you already have
@@ -155,7 +127,6 @@ export default function AddFriendsScreen() {
 
   const renderPerson = (
     person: Friend,
-    index: number,
     dismissable: boolean,
     shared?: { faces: readonly Friend[]; count: number },
   ) => {
@@ -197,7 +168,7 @@ export default function AddFriendsScreen() {
         ]}
       >
         <SwipeRow actions={quick}>
-          <View style={[styles.row, index > 0 && styles.rowRuled]}>
+          <View style={styles.row}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${person.name}'s profile`}
@@ -237,10 +208,13 @@ export default function AddFriendsScreen() {
               <Pill tone="muted" size="sm" bold icon="people-outline" label="Friends" />
             ) : (
               // The Members feed's own pill: a request, not a friend yet, so just
-              // the words once sent, and a second tap takes it back.
+              // the words once sent, and a second tap takes it back. The Add
+              // carries the person-with-a-plus the Friends pill's people
+              // answer, so the two read as one action and its outcome.
               <Pill
                 tone={isRequested ? 'muted' : 'solid'}
                 bold
+                icon={isRequested ? undefined : 'person-add-outline'}
                 label={isRequested ? 'Request sent' : 'Add'}
                 onPress={() => toggleRequest(person.id)}
               />
@@ -293,7 +267,7 @@ export default function AddFriendsScreen() {
               </Text>
             </View>
             {results.length ? (
-              <View>{results.map((person, i) => renderPerson(person, i, false))}</View>
+              <View>{results.map((person) => renderPerson(person, false))}</View>
             ) : searching ? null : (
               <EmptyState
                 icon="search-outline"
@@ -304,69 +278,6 @@ export default function AddFriendsScreen() {
           </>
         ) : (
           <>
-            {/* The invite, the page's one dark block: the way to bring
-                someone who isn't on the app yet, so it leads ahead of the
-                suggestions. Share link goes out through the system sheet;
-                Show code holds the code up for a friend standing next to
-                you. */}
-            {/* Only while there's a challenge to bring them into. */}
-            {inChallenge && NATIVE_HEADER ? (
-              // On the iPhone the invite is set like the app's empty states —
-              // the glyph on its disc, the words, the two ways to send it — on
-              // a fill-grey card, since it leads the page as something to do.
-              <EmptyState
-                card
-                icon="person-add-outline"
-                title="Bring a friend along"
-                hint={`They join ${challenge.name} with you`}
-                action={{ label: 'Share link', icon: 'share-outline', onPress: invite }}
-                secondaryAction={{
-                  label: 'Show code',
-                  icon: 'qr-code-outline',
-                  onPress: () => setCodeOpen(true),
-                }}
-                style={styles.invite}
-              />
-            ) : inChallenge ? (
-              <View style={styles.hero}>
-                <View style={styles.heroTop}>
-                  <View style={styles.heroTile}>
-                    <Ionicons name="qr-code-outline" size={HERO_GLYPH} color={colors.ink} />
-                  </View>
-                  <View style={styles.heroText}>
-                    <Text variant="itemTitle" color={colors.inkInverse}>
-                      Bring a friend along
-                    </Text>
-                    <Text variant="meta" color={colors.inkGhost}>
-                      {`They join ${challenge.name} with you`}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.heroActions}>
-                  <View style={styles.heroAction}>
-                    <Pill
-                      tone="floating"
-                      bold
-                      icon="link-outline"
-                      label="Share link"
-                      onPress={invite}
-                      style={styles.heroPill}
-                    />
-                  </View>
-                  <View style={styles.heroAction}>
-                    <Pill
-                      tone="onInk"
-                      bold
-                      icon="qr-code-outline"
-                      label="Show code"
-                      onPress={() => setCodeOpen(true)}
-                      style={styles.heroPill}
-                    />
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
             {/* Someone waiting on you comes before anyone you might ask:
                 their face, Accept, and a cross to turn it down. */}
             {requests.length ? (
@@ -378,7 +289,7 @@ export default function AddFriendsScreen() {
                   </Text>
                 </View>
                 <View>
-                  {requests.map((person, i) => (
+                  {requests.map((person) => (
                     <SwipeRow
                       key={person.id}
                       actions={[
@@ -386,7 +297,7 @@ export default function AddFriendsScreen() {
                         { label: 'Decline', tone: 'destructive', onPress: () => decline(person.id) },
                       ]}
                     >
-                      <View style={[styles.row, i > 0 && styles.rowRuled]}>
+                      <View style={styles.row}>
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={`${person.name}'s profile`}
@@ -438,16 +349,16 @@ export default function AddFriendsScreen() {
                   ) : null}
                 </View>
                 <View>
-                  {shownSuggestions.map((s, i) =>
-                    renderPerson(s.person, i, true, { faces: s.mutuals, count: s.mutualCount }),
+                  {shownSuggestions.map((s) =>
+                    renderPerson(s.person, true, { faces: s.mutuals, count: s.mutualCount }),
                   )}
                 </View>
               </>
             ) : null}
 
-            {/* Nobody to bring in, nobody asking and nobody to suggest:
-                the search is the only way left, so the page says so. */}
-            {!inChallenge && !requests.length && !suggestions.length && suggestionsLoaded ? (
+            {/* Nobody asking and nobody to suggest: the search is the only
+                way left, so the page says so. */}
+            {!requests.length && !suggestions.length && suggestionsLoaded ? (
               <EmptyState
                 icon="search-outline"
                 title="No one to suggest yet"
@@ -458,39 +369,6 @@ export default function AddFriendsScreen() {
         )}
       </ScreenScroll>
 
-      {/* The code at full size slides up from the bottom the way the
-          comments do: something to hold out to a friend for a moment, and
-          swiped or tapped away once they've scanned it. */}
-      {/* No gap past the safe area: the text is the sheet's last word, and
-          the default room left for a button under it read as empty space. */}
-      <BottomSheet visible={codeOpen} onDismiss={() => setCodeOpen(false)} bottomGap={0}>
-        <View style={styles.codeSheet}>
-          <Text variant="sectionHeading" center>
-            Join my era
-          </Text>
-          <View style={styles.codeSheetTile}>
-            <QRCode
-              value={joinUrl}
-              size={CODE_SHEET_SIZE}
-              // Dark on light whatever the phone's appearance: an inverted
-              // code is one not every camera will read.
-              color={colorsFor('light').ink}
-              backgroundColor={colorsFor('light').surface}
-            />
-          </View>
-          {/* Which challenge it joins, and what to do with it — written to
-              the friend holding the camera, since the sheet is held out to
-              them. */}
-          <View style={styles.codeSheetText}>
-            <Text variant="itemTitle" center>
-              {challenge.name}
-            </Text>
-            <Text variant="copy" color={colors.inkMuted} center>
-              Scan with your phone's camera to join me.
-            </Text>
-          </View>
-        </View>
-      </BottomSheet>
     </View>
   );
 }
@@ -501,62 +379,6 @@ const styles = StyleSheet.create({
   },
   search: {
     marginBottom: layout.section,
-  },
-  invite: {
-    marginBottom: layout.section,
-  },
-  hero: {
-    marginBottom: layout.section,
-    padding: layout.card,
-    gap: layout.block,
-    borderRadius: radii.lg,
-    backgroundColor: colors.ink,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.block,
-  },
-  heroTile: {
-    width: HERO_TILE,
-    height: HERO_TILE,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroText: {
-    flex: 1,
-    gap: layout.line,
-  },
-  heroActions: {
-    flexDirection: 'row',
-    gap: layout.stack,
-  },
-  heroAction: {
-    flex: 1,
-  },
-  // The two buttons share the card's width equally rather than hugging
-  // their labels.
-  heroPill: {
-    alignSelf: 'stretch',
-  },
-  codeSheet: {
-    alignItems: 'center',
-    gap: layout.block,
-  },
-  // Lifted off the sheet on the card shadow, with a quiet white margin round
-  // the code for the scanner.
-  codeSheetTile: {
-    padding: layout.block,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  codeSheetText: {
-    alignItems: 'center',
-    gap: layout.line,
-    paddingHorizontal: layout.card,
   },
   // A heading with its quiet count or See all at the far end — Community's
   // "Finished today".
@@ -571,10 +393,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.inline,
     paddingVertical: layout.heading,
-  },
-  rowRuled: {
-    borderTopWidth: ROW_RULE,
-    borderTopColor: colors.surfaceSunken,
   },
   person: {
     flex: 1,

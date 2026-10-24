@@ -31,6 +31,9 @@ export interface ShareProfileSheetProps {
   /** Where they are today — "Day 12 of Get Fit for Summer" — under the
    * name; left out between eras. */
   status?: string | null;
+  /** Someone else's profile, passed on from their page: the hint under the
+   * card names them rather than speaking as you. */
+  theirs?: boolean;
 }
 
 /**
@@ -39,7 +42,7 @@ export interface ShareProfileSheetProps {
  * three ways to send it: the link copied, the card saved to Photos, or the
  * phone's share sheet.
  */
-export function ShareProfileSheet({ visible, onDismiss, person, status }: ShareProfileSheetProps) {
+export function ShareProfileSheet({ visible, onDismiss, person, status, theirs = false }: ShareProfileSheetProps) {
   const card = useRef<HostInstance>(null);
   const [done, setDone] = useState<'copied' | 'saved' | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -125,7 +128,7 @@ export function ShareProfileSheet({ visible, onDismiss, person, status }: ShareP
         </View>
 
         <Text variant="note" color={problem ? colors.destructive : colors.inkMuted} center>
-          {problem ?? 'Friends scan it to add you'}
+          {problem ?? (theirs ? `Scan it to add ${person.name}` : 'Friends scan it to add you')}
         </Text>
 
         {/* Three round buttons, each its word under it — the row a

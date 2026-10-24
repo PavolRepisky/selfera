@@ -41,6 +41,14 @@ const NATIVE_ITEM = 36;
 export const cornerButtonSize = 46;
 export const cornerIconSize = 22;
 
+/** A round button standing in for a page header's own — over a full-screen
+ * photo, where there's no bar to put it in (a story's close and like). On
+ * the iPhone's glass that's the system bar item's 44pt circle with the
+ * symbol at the bar's body size, so it matches the buttons in every native
+ * header; elsewhere the drawn header's corner button. */
+export const headerButtonSize = LIQUID_GLASS ? 44 : cornerButtonSize;
+export const headerIconSize = LIQUID_GLASS ? 17 : cornerIconSize;
+
 export interface IconButtonProps {
   name: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;

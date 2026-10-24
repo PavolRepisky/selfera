@@ -1,14 +1,15 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { AlertDialog } from '@/components/AlertDialog';
 import { ProfileHeader, ProfileView } from '@/components/ProfileView';
 import { ScreenScroll } from '@/components/Screen';
+import { ShareProfileSheet } from '@/components/ShareProfileSheet';
 import { useSession } from '@/hooks/useSession';
 import { useRelation, useSocial } from '@/hooks/useSocial';
 import { possessive } from '@/lib/names';
 import { profileDays, profileRun } from '@/lib/profileDays';
-import { shareProfile } from '@/lib/shareProfile';
 
 /**
  * A friend's or a challenge member's profile, opened from the Community tab,
@@ -27,8 +28,10 @@ export default function FriendProfileScreen() {
   const router = useRouter();
   const { session } = useSession();
   const social = useSocial();
-  const { loadPage, accept, toggleRequest } = social;
+  const { loadPage, accept, toggleRequest, unfriend } = social;
   const relation = useRelation(userId);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [unfriendOpen, setUnfriendOpen] = useState(false);
 
   useEffect(() => {
     loadPage(userId);
@@ -87,8 +90,10 @@ export default function FriendProfileScreen() {
 
   // What the first button says follows where you stand with them: already
   // friends, asked by them (one tap accepts), asked by you, or neither.
+  // Friends wears a tick and is the way out of it: a tap asks first, since
+  // asking again means waiting on them to accept.
   const relationAction = relation.isFriend
-    ? { label: 'Friends' }
+    ? { label: 'Friends', icon: 'checkmark' as const, onPress: () => setUnfriendOpen(true) }
     : relation.requestReceived
       ? { label: 'Accept request', onPress: () => accept(userId) }
       : {
@@ -99,7 +104,9 @@ export default function FriendProfileScreen() {
     relationAction,
     {
       label: 'Share profile',
-      onPress: () => shareProfile({ id: userId, name: friend.name, handle: friend.handle }),
+      // The same sheet your own Share profile opens: their code, name and
+      // handle on the card, and the same three ways to send it.
+      onPress: () => setShareOpen(true),
     },
   ];
 
@@ -132,6 +139,32 @@ export default function FriendProfileScreen() {
           actions={actions}
         />
       </ScreenScroll>
+
+      <ShareProfileSheet
+        visible={shareOpen}
+        onDismiss={() => setShareOpen(false)}
+        person={{ id: userId, name: friend.name, handle: friend.handle }}
+        status={page?.challenge && today > 0 ? `Day ${today} of ${page.challenge.name}` : null}
+        theirs
+      />
+
+      <AlertDialog
+        visible={unfriendOpen}
+        title={`Remove ${friend.name}?`}
+        message="You'll stop being friends. You can add them again later."
+        onDismiss={() => setUnfriendOpen(false)}
+        actions={[
+          { label: 'Cancel', onPress: () => setUnfriendOpen(false) },
+          {
+            label: 'Remove',
+            destructive: true,
+            onPress: () => {
+              setUnfriendOpen(false);
+              unfriend(userId);
+            },
+          },
+        ]}
+      />
     </View>
   );
 }

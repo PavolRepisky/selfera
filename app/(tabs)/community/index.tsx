@@ -115,7 +115,6 @@ export default function CommunityScreen() {
     roundSize,
     loaded,
     relations,
-    seen,
     refreshToday,
     toggleRequest: toggleAdded,
   } = useSocial();
@@ -249,9 +248,6 @@ export default function CommunityScreen() {
   }, [myFinished, myAvatar, profile, tasks, progress, captions, currentDay, membershipId, challenge]);
 
   const friendsGoing = friends.filter((friend) => !finished(friend, now));
-  /** How many of someone's photos today you've already seen. */
-  const watchedOf = (person: Friend) =>
-    person.tasks.filter((task) => task.completionId && seen.has(task.completionId)).length;
 
   // The "Still going today" row as the story viewer plays it through: you,
   // then everyone after you, skipping faces with no photo yet — there's no
@@ -408,9 +404,7 @@ export default function CommunityScreen() {
                       avatar={myAvatar}
                       done={myDone}
                       total={tasks.length}
-                      // Your own photos are yours: there's nothing in them
-                      // you haven't seen.
-                      watched={myDone}
+                      mine
                       onPress={() =>
                         hasStoryToday
                           ? router.push({
@@ -428,7 +422,7 @@ export default function CommunityScreen() {
                       avatar={friend.avatar}
                       done={doneCount(friend)}
                       total={friend.tasks.length}
-                      watched={watchedOf(friend)}
+                      photos={friend.tasks.map((task) => task.completionId)}
                       // The same story viewer yours opens in.
                       onPress={() =>
                         router.push({
@@ -643,14 +637,16 @@ function StoryFace({
   avatar,
   done,
   total,
-  watched,
+  photos,
+  mine,
   onPress,
 }: {
   name: string;
   avatar: AvatarSource;
   done: number;
   total: number;
-  watched: number;
+  photos?: readonly (string | undefined)[];
+  mine?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -659,7 +655,8 @@ function StoryFace({
         avatar={avatar}
         done={done}
         total={total}
-        watched={watched}
+        photos={photos}
+        mine={mine}
         size={STORY_RING}
         badge={false}
         onPress={onPress}

@@ -14,7 +14,14 @@ export function profileDays(records: readonly DayRecord[]): Map<number, ProfileD
       {
         shots: tasks.flatMap((task) =>
           task.photo || task.photoSeed
-            ? [{ key: task.label, photo: task.thumb ?? task.photo ?? null, seed: task.photoSeed ?? null }]
+            ? [
+                {
+                  key: task.label,
+                  photo: task.thumb ?? task.photo ?? null,
+                  seed: task.photoSeed ?? null,
+                  completionId: task.completionId,
+                },
+              ]
             : [],
         ),
         done: tasks.filter((task) => task.done).length,

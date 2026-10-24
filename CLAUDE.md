@@ -40,7 +40,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 | `day/[day]` | One of your eras as a scrolling feed (`DaysFeed` of `FriendCard`s), titled with the era's name and holding only its days, starting at the day you tapped (`?run=` names a past era). A tile or an era's header row on the profile opens it. |
 | `friend/[id]`, `friend/post/[id]` | Someone else's `ProfileView`, and one of their eras as a days feed, as `day/[day]` is for yours. Their today follows the lock. |
 | `story` | Full-screen story viewer over someone's photos for the day, with a queue across the Community row and a heart to like the day. |
-| `add-friends` | Search, an invite card (share link plus QR code), and suggestions with mutual friends. |
+| `add-friends` | Search, requests, and suggestions with mutual friends, each with Add. |
 | `account/settings` · `edit` · `theme` · `reminders` | Settings: your card at the top (opens `edit`), App (Reminders while in an era, Theme: system, light or dark, End era while in one), About (Privacy and Terms, still doing nothing), Account (Log out, Delete account), the version at the foot. `edit` is Edit profile, as the canvas draws it: the photo big with a pencil badge (its own menu, saved at once), then Name, Username (up to 30) and Bio (multiline), each in a white box under its label with its count, kept on the bar's Save (leaving any way — ✕, swipe or back — asks first if any changed). `reminders` explains each group under it. |
 | `sign-in` | The only route when signed out: email and password, plus Apple once the project turns it on (native sheet in a build, browser flow in Expo Go). Google is in `lib/backend/auth.ts` but has no button. |
 | `sheet`, `sheet-large` | iOS system sheet routes, currently switched off (see `BottomSheet` below). |
@@ -333,12 +333,15 @@ day's cover as a 9:16 story in a centred popup (a switch each for the photos' ti
 to Photos — opened from Tasks' "Save your day" once the post is up.
 
 **Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card on a profile · `CheckCircle` a done task's tick · `TaskRing` a face in the split
-task ring with its "3/5" badge, or round Tasks' shutter · `CalendarMonth` month grid · `PhotoCollage` today's post filling in, its open pieces dashed slots · `DayCover`
+task ring with its "3/5" badge, or round Tasks' shutter — every ring, the profile's
+included; handed a day's `photos` (completion ids) it fades the ones you've
+seen, and `mine` fades them all · `CalendarMonth` month grid · `PhotoCollage` today's post filling in, its open pieces dashed slots · `DayCover`
 a day's cover — its photos (each one's time and task in its middle only on the saved story, by its switches), "Day N/75" and the era name on a soft shadow across the centre, "Selfera" faint at the foot — on a post's first slide and as its tile in the profile's grid ·
+`ShotStamp` a photo's time over its task across its middle, as a post's photo slides and a story's frames set it ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·
-`FriendCard` · `PostHeader` who posted a day — face (in its task ring on My
-days and a story), name, time, "Day N · challenge" · `LockedOverlay` · `ChallengeRow` a
+`FriendCard` · `PostHeader` who posted a day — face (in its task ring only on a
+story), name, time, "Day N · challenge" · `LockedOverlay` · `ChallengeRow` a
 challenge in a list, photo first, its start date at the end while it can be joined (`mosaic` for up to three photos with no seam; `ChallengeMosaic` draws the same on Discover's cover)
 · `Avatar` · `DateRange` · `GlassSurface` ·
 `Placeholder` / `AvatarPlaceholder` / `AvatarSilhouette` · `FloatingTabBar`.

@@ -23,12 +23,13 @@ import { postKey } from '@/lib/backend/social';
 import { addDays, clock24, relativeDay } from '@/lib/format';
 import { startOfToday } from '@/lib/round';
 import { CommentsSheet, type CommentEntry } from './CommentsSheet';
-import { CoverMark, DayCover, POST_RATIO, shotClock } from './DayCover';
+import { CoverMark, DayCover, POST_RATIO } from './DayCover';
 import { PostHeader } from './PostHeader';
 import { LOCK_BLUR_RADIUS, LockedOverlay } from './LockedOverlay';
 import { type CollageCell } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
 import { NATIVE_HEADER } from './Screen';
+import { ShotStamp } from './ShotStamp';
 import { Text } from './Text';
 
 // Shared with the story viewer and Community, which blur locked photos too.
@@ -37,9 +38,6 @@ export { LOCK_BLUR_RADIUS };
 /** The post's own shape, shared with its tile on a profile. */
 const CAROUSEL_RATIO = POST_RATIO;
 
-/** The slide caption's drop: a short soft blur a point below the letters. */
-const STAMP_SHADOW_RADIUS = 4;
-const STAMP_SHADOW_OFFSET = { width: 0, height: 1 };
 
 
 
@@ -52,8 +50,7 @@ export interface FriendCardProps {
   locked?: boolean;
   /** Drawn at the far end of the identity row — the Members feed's Add. */
   accessory?: React.ReactNode;
-  /** A post in a days feed: the face goes without its ring, which on one
-   * person's own days would only repeat what their profile already showed. */
+  /** A post in a days feed: its time says which day it was. */
   daysFeed?: boolean;
   style?: StyleProp<ViewStyle>;
   /**
@@ -335,33 +332,9 @@ export function FriendCard({
         ) : (
           <Placeholder seed={item.seed} radius={0} style={slideSize} />
         )}
-        {/* When it was shot over what it proves, across the middle of the
-            shot the way a short video titles itself — in white, on only a faint
-            drop, no band behind it, so the photo keeps its
-            colour. Not while locked: a caption over a blur is a teaser, not
-            a post. */}
-        {(item.time || item.label) && !locked ? (
-          <View style={styles.slideCaption} pointerEvents="none">
-            {item.time ? (
-              <Text variant="shotTitle" color={colors.shotStamp} center style={styles.slideStamp}>
-                {shotClock(item.time)}
-              </Text>
-            ) : null}
-            {item.label ? (
-              <Text
-                variant="shotTitle"
-                color={colors.shotStamp}
-                numberOfLines={2}
-                center
-                style={styles.slideStamp}
-              >
-                {/* Lower case, as a caption typed over a short video
-                    reads — "walk 10k steps" — not a title. */}
-                {item.label.toLowerCase()}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
+        {/* When it was shot over what it proves. Not while locked: a
+            caption over a blur is a teaser, not a post. */}
+        {!locked ? <ShotStamp time={item.time} label={item.label} /> : null}
         {/* Signed at the foot like the cover before it, so every slide of
             a post carries the app's name when it's screenshotted alone. */}
         {locked ? null : <CoverMark width={carouselWidth} />}
@@ -388,9 +361,10 @@ export function FriendCard({
         time={time}
         day={day}
         challengeName={friend.challengeName ?? challenge.name}
-        done={postTasks.filter((task) => task.done).length}
-        total={postTasks.length}
-        ring={!daysFeed}
+        // A post's face stands bare, in the feed and on one person's days
+        // alike: the ring belongs to who's still going — the story row, a
+        // profile, a story — not to a day that's already finished.
+        ring={false}
         onPressProfile={onPress}
         onPressChallenge={() =>
           router.push({ pathname: '/feed/[id]', params: { id: friend.challengeId ?? challenge.id } })
@@ -567,21 +541,6 @@ const styles = StyleSheet.create({
     zIndex: 1,
     marginTop: layout.heading,
     marginHorizontal: -layout.gutter,
-  },
-  // Centred on the photo, held a card's inset off its sides so a long task
-  // wraps before it reaches the edge; the two lines set tight, as one title.
-  slideCaption: {
-    ...absoluteFill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: layout.card,
-  },
-  // A faint drop, close in, so the yellow holds on a bright shot without
-  // reading as a glow round the letters.
-  slideStamp: {
-    textShadowColor: colors.shotStampShadow,
-    textShadowOffset: STAMP_SHADOW_OFFSET,
-    textShadowRadius: STAMP_SHADOW_RADIUS,
   },
   // Centred under the photo, a heading's gap below it.
   dots: {

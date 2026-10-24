@@ -6,14 +6,11 @@ import {
   Pressable,
   StyleSheet,
   View,
-  useColorScheme,
   type StyleProp,
   type ViewStyle,
-  type ColorValue,
 } from 'react-native';
-import Svg, { Circle, Defs, G, Mask } from 'react-native-svg';
 
-import { colors, colorsFor, layout, radii, shadows } from '@/constants/theme';
+import { colors, layout, radii, shadows } from '@/constants/theme';
 import { shortDate } from '@/lib/format';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Avatar, type AvatarSource } from './Avatar';
@@ -23,7 +20,7 @@ import { DayCover, POST_RATIO } from './DayCover';
 import type { PhotoSource } from './PhotoStrip';
 import { Pill } from './Pill';
 import { ScreenHeader, type ScreenHeaderProps } from './ScreenHeader';
-import { accentAt } from './TaskRing';
+import { TaskRing, profileRingSize } from './TaskRing';
 import { Text } from './Text';
 
 /** The seam between day tiles: the theme's gap between tiles in a grid —
@@ -57,87 +54,15 @@ const PRINT_TILTS = [-6, 3, 8] as const;
 const avatarSize = 120;
 
 /**
- * Today at a glance, drawn as a ring around the photo: one segment per task
- * in the challenge, filled clockwise from 12 o'clock as tasks get done — so
- * opening a profile says straight away how the day is going. A clear gap
- * between the ring and the photo keeps it reading as a gauge around the
- * avatar, not a coloured border on it.
+ * Today at a glance, drawn as a ring around the photo: `TaskRing`'s profile
+ * look, at the size this page set for it, so every ring in the app —
+ * Community's row, a post's face, this one — fades what's been watched the
+ * same way.
  */
-const RING_STROKE = 6;
-const RING_GAP = 5;
-const RING_SIZE = avatarSize + (RING_STROKE + RING_GAP) * 2;
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-/** The visible gap between two segments, measured along the ring. */
-const RING_SEGMENT_GAP = 7;
-
-/**
- * One arc per task, each rotated into its own slot. Round caps grow every
- * arc by half a stroke at each end, so the drawn length gives that back to
- * keep the gaps the size they say. A single task is the whole circle, with
- * no gap to leave.
- */
-function ringSegments(count: number): { length: number; rotation: number }[] {
-  if (count <= 1) return [{ length: RING_CIRCUMFERENCE, rotation: -90 }];
-  const slot = RING_CIRCUMFERENCE / count;
-  const length = Math.max(0.01, slot - RING_SEGMENT_GAP - RING_STROKE);
-  // Shifts each arc half a gap off its slot's edge, so the gap straddles
-  // 12 o'clock rather than the first segment starting on it.
-  const inset = (((RING_SEGMENT_GAP + RING_STROKE) / 2) / RING_CIRCUMFERENCE) * 360;
-  return Array.from({ length: count }, (_, i) => ({
-    length,
-    rotation: -90 + (i * 360) / count + inset,
-  }));
-}
-
-/** One arc of the ring, rotated into its slot. Round caps only between
- * segments — a single task's arc is the whole circle, with no end to cap. */
-function ringSegment(
-  segment: { length: number; rotation: number },
-  index: number,
-  stroke: ColorValue,
-  capped: boolean,
-) {
-  return (
-    <Circle
-      key={index}
-      cx={RING_SIZE / 2}
-      cy={RING_SIZE / 2}
-      r={RING_RADIUS}
-      stroke={stroke}
-      strokeWidth={RING_STROKE}
-      strokeLinecap={capped ? 'round' : 'butt'}
-      fill="none"
-      strokeDasharray={`${segment.length} ${RING_CIRCUMFERENCE}`}
-      transform={`rotate(${segment.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-    />
-  );
-}
-
-/**
- * The accent runs *around* the ring rather than across its box: peach where
- * the first segment starts at 12 o'clock, rose halfway round, lavender by the
- * time the last segment closes — the warm end leads, so the first task ticked
- * off lands in the brightest colour. SVG has no conic gradient, so the sweep
- * is drawn as this many thin arcs, each one flat-coloured for its angle — at
- * a 4° step the banding is below what the eye picks out on a 6pt stroke.
- */
-const RING_SWEEP_SLICES = 90;
-/** How far each slice overlaps the next, along the ring — butted edge to
- * edge, anti-aliasing leaves a hairline seam of background between them. */
-const RING_SWEEP_OVERLAP = 0.6;
-
-/** The sweep's slices, clockwise from 12 o'clock. */
-const ringSweep = Array.from({ length: RING_SWEEP_SLICES }, (_, i) => ({
-  rotation: -90 + (i * 360) / RING_SWEEP_SLICES,
-  // Coloured at the slice's middle, so the first and last land just inside
-  // the two end stops rather than exactly on them.
-  color: accentAt((i + 0.5) / RING_SWEEP_SLICES),
-}));
-
-/** Where the photo sits inside the ring's box: clear of the stroke and the
- * gap between them. */
-const AVATAR_INSET = RING_STROKE + RING_GAP;
+const RING_SIZE = profileRingSize(avatarSize);
+/** Where the photo sits inside the ring's box, when there's no era and the
+ * ring goes: clear of where the band and its gap would be. */
+const AVATAR_INSET = (RING_SIZE - avatarSize) / 2;
 
 /** One empty list for every profile with no earlier eras, so the month's
  * memo doesn't see a new one each render. */
@@ -148,6 +73,9 @@ export interface ProfileShot {
   key: string;
   photo: ImageSourcePropType | null;
   seed: string | null;
+  /** The photo's record on the server — what "seen" is kept against, so
+   * the ring can fade what you've already watched. */
+  completionId?: string;
 }
 
 /** What a profile knows about one challenge day. */
@@ -196,6 +124,9 @@ export interface ProfileViewProps {
   posted: readonly number[];
   /** Eras run before this one, most recent first. */
   pastRuns?: readonly ProfileRun[];
+  /** Your own page: nothing in your own story is new to you, so the ring's
+   * done segments all read as watched, as your face does on Community. */
+  mine?: boolean;
   /** Plays today's story from the photo; left out while there's none. */
   onPlayStory?: () => void;
   /** Opens a day of the era on now, in the era's feed, from its tile or
@@ -216,8 +147,13 @@ export interface ProfileViewProps {
   nextEra?: { photos: readonly PhotoSource[]; hint: string; onFind: () => void };
   /** A row of buttons under the bio — on someone else's page, where you
    * stand with them and Share. One without `onPress` is a status, not a
-   * button — "Friends". */
-  actions?: readonly { label: string; onPress?: () => void }[];
+   * button — "Request sent" once it can't be taken back. */
+  actions?: readonly {
+    label: string;
+    /** A glyph before the label — the tick on "Friends". */
+    icon?: keyof typeof Ionicons.glyphMap;
+    onPress?: () => void;
+  }[];
   style?: StyleProp<ViewStyle>;
 }
 
@@ -241,6 +177,7 @@ export function ProfileView({
   dayOf,
   posted,
   pastRuns = NO_RUNS,
+  mine = false,
   onPlayStory,
   onOpenDay,
   lives,
@@ -251,9 +188,6 @@ export function ProfileView({
   actions,
   style,
 }: ProfileViewProps) {
-  // Plain colours for the appearance on show, for the ring's SVG, which
-  // takes no adaptive ones.
-  const svgColors = colorsFor(useColorScheme());
   const router = useRouter();
 
   // How many of today's tasks are ticked off — what the ring fills in.
@@ -352,6 +286,20 @@ export function ProfileView({
     return record ? { done: record.done, shots: record.shots.length } : null;
   }, [dayOf]);
 
+  // A tap on the photo plays today's story — the ring around it is that
+  // story's progress — and does nothing on a day with no photo yet.
+  const photo = (
+    <Pressable
+      accessibilityRole={onPlayStory ? 'button' : undefined}
+      accessibilityLabel={onPlayStory ? "Watch today's story" : 'Profile photo'}
+      disabled={!onPlayStory}
+      onPress={onPlayStory}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <Avatar source={avatar} size={avatarSize} />
+    </Pressable>
+  );
+
   const runLabel =
     currentDay < 1 ? `${totalDays} days · starts ${shortDate(startDate)}` : `Day ${currentDay} of ${totalDays}`;
 
@@ -364,77 +312,27 @@ export function ProfileView({
             challenge ? `${runLabel}, ${doneToday} of ${taskCount} tasks done today` : undefined
           }
         >
-          {/* Counted, not matched to a task: the ring says how many are
-              done, filling from the top, whichever ones they were. Done
-              segments wear the profile's own warm accent; open ones take
-              the empty-day grey the story ring uses.
-
-              The sweep is laid once around the whole ring and shown
-              through the done segments as a mask, so a segment's colour
-              is simply where it sits on the circle — the first one
-              peach, the last one lavender, whichever tasks are done.
-
-              With no era there is no day to gauge: the photo alone, in the
-              same box, so the name under it doesn't move. */}
+          {/* Counted, not matched to a task: the ring fills from the top,
+              whichever tasks they were, and fades the photos you've
+              already watched. With no era there is no day to gauge: the
+              photo alone, on its disc and shadow in the same box, so the
+              name under it doesn't move. */}
           {challenge ? (
-            <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
-              <Defs>
-                {/* White is what a mask lets through — the done segments'
-                    shape, not a colour anyone sees. */}
-                <Mask
-                  id="ringDone"
-                  maskUnits="userSpaceOnUse"
-                  x={0}
-                  y={0}
-                  width={RING_SIZE}
-                  height={RING_SIZE}
-                >
-                  {ringSegments(taskCount)
-                    .slice(0, doneToday)
-                    .map((segment, index) =>
-                      ringSegment(segment, index, svgColors.onMedia, taskCount > 1),
-                    )}
-                </Mask>
-              </Defs>
-
-              {ringSegments(taskCount).map((segment, index) =>
-                index < doneToday
-                  ? null
-                  : ringSegment(segment, index, svgColors.inkGhost, taskCount > 1),
-              )}
-              <G mask="url(#ringDone)">
-                {ringSweep.map((slice, index) => (
-                  <Circle
-                    key={index}
-                    cx={RING_SIZE / 2}
-                    cy={RING_SIZE / 2}
-                    r={RING_RADIUS}
-                    stroke={slice.color}
-                    strokeWidth={RING_STROKE}
-                    fill="none"
-                    strokeDasharray={`${RING_CIRCUMFERENCE / RING_SWEEP_SLICES + RING_SWEEP_OVERLAP} ${RING_CIRCUMFERENCE}`}
-                    transform={`rotate(${slice.rotation} ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-                  />
-                ))}
-              </G>
-            </Svg>
-          ) : null}
-
-          {/* The disc behind the photo is the avatar's own shape, so the
-              hard shadow has something solid to cast from. A tap plays
-              today's story — the ring around it is that story's progress —
-              and does nothing on a day with no photo yet. */}
-          <View style={[styles.avatarDisc, shadows.hard]}>
-            <Pressable
-              accessibilityRole={onPlayStory ? 'button' : undefined}
-              accessibilityLabel={onPlayStory ? "Watch today's story" : 'Profile photo'}
-              disabled={!onPlayStory}
-              onPress={onPlayStory}
-              style={({ pressed }) => pressed && styles.pressed}
+            <TaskRing
+              avatar={avatar}
+              done={doneToday}
+              total={taskCount}
+              photos={dayOf(currentDay)?.shots.map((shot) => shot.completionId)}
+              mine={mine}
+              size={RING_SIZE}
+              badge={false}
+              look="profile"
             >
-              <Avatar source={avatar} size={avatarSize} />
-            </Pressable>
-          </View>
+              {photo}
+            </TaskRing>
+          ) : (
+            <View style={[styles.avatarDisc, shadows.hard]}>{photo}</View>
+          )}
         </View>
 
         {/* Stacked under the photo and centred on it. A missing bio is
@@ -471,6 +369,7 @@ export function ProfileView({
             <View key={action.label} style={styles.action}>
               <Pill
                 label={action.label}
+                icon={action.icon}
                 tone="muted"
                 grey
                 labelVariant="copyBold"
@@ -651,9 +550,6 @@ const styles = StyleSheet.create({
     height: RING_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ringSvg: {
-    position: 'absolute',
   },
   avatarDisc: {
     position: 'absolute',

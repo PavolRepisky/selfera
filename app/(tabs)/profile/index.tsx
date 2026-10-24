@@ -135,6 +135,7 @@ export default function ProfileScreen() {
           dayOf={dayOf}
           posted={postedDays}
           pastRuns={pastRuns}
+          mine
           lives={{ left: livesLeft, total: livesTotal }}
           friendCount={myPage?.friendCount}
           onPlayStory={
