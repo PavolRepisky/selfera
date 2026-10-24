@@ -246,7 +246,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (isFakeRun(membershipId)) {
         // Only a top-level comment of yours: replies on a made-up thread
         // would need the tree rebuilt for nothing.
-        const mine: CommentEntry = { id: `${key}-${Date.now()}`, author: 'You', avatar: null, text };
+        const mine: CommentEntry = { id: `${key}-${Date.now()}`, author: 'You', avatar: null, text, at: new Date() };
         demoThreads.current[key] = [...(demoThreads.current[key] ?? DEMO_THREAD), mine];
       } else {
         await social.addComment(membershipId, day, text, parentId);

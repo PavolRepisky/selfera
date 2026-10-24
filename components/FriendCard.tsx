@@ -549,6 +549,9 @@ export function FriendCard({
         onChangeDraft={setDraft}
         onSubmit={submit}
         composerAvatar={profile.avatar ?? profile.avatarSeed}
+        // Named in the field's hint on someone else's post; your own needs no
+        // "for".
+        recipient={friend.name === profile.name ? undefined : friend.name}
       />
     </View>
   );

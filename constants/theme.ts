@@ -62,6 +62,7 @@ const DARK = {
   field: '#3A3A3C',
   divider: '#2C2C2E',
   sunkenRule: '#3A3A3C',
+  sheetRule: '#242426',
   destructive: '#FF5A6E',
   liked: '#FF5A6E',
   disabled: '#2C2C2E',
@@ -130,6 +131,14 @@ const LIGHT = {
    * than `surface`, which there sits darker and drew the seams as black lines.
    */
   sunkenRule: palette.white,
+
+  /**
+   * The rule across a sheet over its composer (Comments), edge to edge at a
+   * full point — a step past the fill grey, which at that weight on the
+   * sheet's white all but vanished; in dark mode just off the sheet's own
+   * grey.
+   */
+  sheetRule: '#EEEEEE',
 
   /**
    * Destructive rows and the Restart action. A saturated red rather than the

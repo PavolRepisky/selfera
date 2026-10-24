@@ -262,14 +262,18 @@ export function demoStats(people: readonly Person[]): Record<string, PostStats> 
 const threadSize = (thread: readonly CommentEntry[]): number =>
   thread.reduce((sum, c) => sum + 1 + threadSize(c.replies ?? []), 0);
 
+/** Minutes before now, for the made-up thread's stamps. */
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+
 /** The thread every made-up post opens on. */
 export const DEMO_THREAD: CommentEntry[] = [
   {
     id: `${FAKE}c1`,
-    author: 'sofiaruns',
+    author: 'Sofia',
     avatar: 'demo-sofiaruns',
     text: 'Obsessed with this 😍',
-    replies: [{ id: `${FAKE}c2`, author: 'mia.moves', avatar: 'demo-mia.moves', text: 'Same!!' }],
+    at: minutesAgo(52),
+    replies: [{ id: `${FAKE}c2`, author: 'Mia', avatar: 'demo-mia.moves', text: 'Same!!', at: minutesAgo(40) }],
   },
-  { id: `${FAKE}c3`, author: 'lena.reads', avatar: 'demo-lena.reads', text: 'Day 12 already, let’s gooo' },
+  { id: `${FAKE}c3`, author: 'Lena', avatar: 'demo-lena.reads', text: 'Day 12 already, let’s gooo', at: minutesAgo(12) },
 ];

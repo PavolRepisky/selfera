@@ -467,6 +467,7 @@ export async function fetchThread(membershipId: string, day: number): Promise<Co
       author: r.author?.name || r.author?.handle || 'Someone',
       avatar: face(r.author?.avatar_path ?? null),
       text: r.body,
+      at: new Date(r.created_at),
       replies: [],
     });
   }

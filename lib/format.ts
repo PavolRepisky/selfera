@@ -85,6 +85,18 @@ export function addDays(date: Date, days: number): Date {
   return next;
 }
 
+/** "now", "12m", "3h", "2d", "5w" — how long ago something was said, as a
+ * comment thread stamps it: one unit, the biggest that fits, no "ago". */
+export function ago(date: Date, now = new Date()): string {
+  const minutes = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 60_000));
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return days < 7 ? `${days}d` : `${Math.floor(days / 7)}w`;
+}
+
 /** "7h 12m" — what's left of today until midnight, the day's deadline. Under
  * an hour it drops the hours, so the last stretch reads as minutes. */
 export function timeLeftToday(now: Date): string {
