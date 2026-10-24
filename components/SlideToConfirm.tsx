@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -12,7 +11,7 @@ import {
 } from 'react-native';
 
 import { Text } from './Text';
-import { absoluteFill, colors, gradients, layout, radii, shadows } from '@/constants/theme';
+import { absoluteFill, colors, layout, radii, shadows } from '@/constants/theme';
 
 /** The track's height — a thumb's target, the size of the phone's own
  * slide to answer. */
@@ -50,8 +49,8 @@ export interface SlideToConfirmProps {
 /**
  * A knob carried along a track to do something that shouldn't happen by a
  * stray tap — the phone's own slide to answer. The label breathes to say
- * it can be slid; as the knob goes, the accent — the colour of progress —
- * fills the track behind it. Let go short of the end, it springs back;
+ * it can be slid; as the knob goes, the track fills in ink behind it, so the
+ * knob grows into a pill reaching back to the start. Let go short of the end, it springs back;
  * carried to the end, it stays there with a tick and `onConfirm` runs.
  * VoiceOver and TalkBack reach it as a button.
  */
@@ -136,8 +135,8 @@ export function SlideToConfirm({ label, onConfirm, disabled, style }: SlideToCon
       extrapolate: 'clamp',
     }),
   );
-  // The trail: a track-wide strip of the accent, slid in from the left so
-  // its rounded end always sits under the knob's.
+  // The trail: a track-wide strip of ink, slid in from the left so its
+  // rounded end always sits under the knob's.
   const trailShift = x.interpolate({
     inputRange: [0, Math.max(travel, 1)],
     outputRange: [-travel, 0],
@@ -170,12 +169,7 @@ export function SlideToConfirm({ label, onConfirm, disabled, style }: SlideToCon
             { width, opacity: trailOpacity, transform: [{ translateX: trailShift }] },
           ]}
         >
-          <LinearGradient
-            colors={gradients.accent}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.trailFill}
-          />
+          <View style={styles.trailFill} />
         </Animated.View>
       ) : null}
       <Animated.View style={[styles.label, { opacity: labelOpacity }]} pointerEvents="none">
@@ -217,8 +211,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     overflow: 'hidden',
   },
+  // The knob's own ink, so the two read as one shape.
   trailFill: {
     ...absoluteFill,
+    backgroundColor: colors.ink,
   },
   // Centred on what's left of the track past the knob, the way the phone's
   // own sits — the knob slides over where it was.

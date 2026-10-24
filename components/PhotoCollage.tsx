@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Pressable,
   StyleSheet,
@@ -9,9 +8,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, layout, radii, spacing } from '@/constants/theme';
+import { absoluteFill, colors, layout, radii } from '@/constants/theme';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Placeholder } from './Placeholder';
+import { ShotStamp } from './ShotStamp';
 import { Text } from './Text';
 
 /** One piece of the mosaic — a task's proof photo, or the slot where it goes. */
@@ -61,9 +61,6 @@ const MOSAIC_PIECE = { flex: 1 } as const;
 const PLUS_DISC = 34;
 /** The plus inside it. */
 const PLUS_GLYPH = 20;
-/** The dashed edge round an open slot — heavy enough to read as dashes
- * rather than a dotted hairline at a phone's distance. */
-const SLOT_EDGE = 2;
 
 /** One piece of the mosaic: the photo, or the open slot asking for it. */
 function MosaicTile({ cell }: { cell: CollageCell }) {
@@ -76,31 +73,15 @@ function MosaicTile({ cell }: { cell: CollageCell }) {
       ) : (
         <Placeholder seed={cell.seed ?? cell.key} radius={0} style={absoluteFill} />
       )}
-      {/* What it proves and when it was shot, in the corner like a camera's
-          date stamp — the same as the post's own photos on Community. */}
-      {cell.label || cell.time ? (
-        <>
-          <LinearGradient colors={gradients.photoFoot} style={styles.foot} pointerEvents="none" />
-          <View style={styles.caption} pointerEvents="none">
-            {cell.label ? (
-              <Text variant="shotCaption" color={colors.onMedia} numberOfLines={1} style={styles.captionShadow}>
-                {cell.label}
-              </Text>
-            ) : null}
-            {cell.time ? (
-              <Text variant="shotCaption" color={colors.onMedia} style={styles.captionShadow}>
-                {cell.time}
-              </Text>
-            ) : null}
-          </View>
-        </>
-      ) : null}
+      {/* When it was shot over what it proves, across its middle — the
+          same stamp the post's own photo slides wear on Community. */}
+      <ShotStamp time={cell.time} label={cell.label} />
     </>
   ) : (
-    // A dashed slot inset in the grey, the way a profile's empty photo slot
-    // reads as "a photo goes here" without a button of its own: the whole
-    // square is the button. Before Day 1, with nothing to press yet, it names
-    // its task without the plus.
+    // A plain grey cell, the way a profile's empty photo slot reads as "a
+    // photo goes here" without a button of its own: the whole cell is the
+    // button. Before Day 1, with nothing to press yet, it names its task
+    // without the plus.
     <View style={[absoluteFill, styles.empty]}>
       <View style={styles.slot}>
         {cell.onPress ? (
@@ -239,11 +220,106 @@ export function MosaicArrangement<T extends { key: string }>({
 
 /**
  * Today's post at the shape it goes up in, the Tasks tab's grid: the tasks
- * already shot show their photo with its task and time in the corner, the
- * rest wait as dashed slots naming their task. Cut with no seam, as the
- * cover is, so it reads as the one post it becomes rather than a grid of
- * boxes; the dashed slots are what part two open squares side by side.
+ * already shot show their photo with its time and task across the middle, the
+ * rest wait as grey cells naming their task. Cut with no seam, so photos
+ * meet with nothing between them, as the one post they become; only where
+ * two open cells share an edge is a grey line drawn, so they still read as
+ * two places a photo goes.
  */
+/** Where a piece sits in the mosaic, as shares of its width and height. */
+interface PieceRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Each piece's place in the unit square, cut exactly as `MosaicArrangement`
+ * cuts it with no seam — so lines can be laid over just the edges that need
+ * one, rather than a seam running under every piece.
+ */
+function mosaicRects(count: number): PieceRect[] {
+  const third = 1 / 3;
+  const rect = (x: number, y: number, w: number, h: number) => ({ x, y, w, h });
+  const across = (n: number, y: number, h: number) =>
+    Array.from({ length: n }, (_, i) => rect(i / n, y, 1 / n, h));
+  switch (count) {
+    case 1:
+      return [rect(0, 0, 1, 1)];
+    case 2:
+      return across(2, 0, 1);
+    case 3:
+      return [rect(0, 0, 0.5, 1), rect(0.5, 0, 0.5, 0.5), rect(0.5, 0.5, 0.5, 0.5)];
+    case 4:
+    case 5:
+    case 6: {
+      const top = count === 6 ? 3 : 2;
+      return [...across(top, 0, 0.5), ...across(count - top, 0.5, 0.5)];
+    }
+    case 7:
+      return [
+        rect(0, 0, third, 2 * third),
+        rect(third, 0, third, third),
+        rect(2 * third, 0, third, 2 * third),
+        rect(third, third, third, third),
+        rect(0, 2 * third, third, third),
+        rect(third, 2 * third, third, third),
+        rect(2 * third, 2 * third, third, third),
+      ];
+    case 8:
+      return [
+        rect(0, 0, third, 2 * third),
+        rect(third, 0, third, third),
+        rect(2 * third, 0, third, third),
+        rect(third, third, third, third),
+        rect(2 * third, third, third, third),
+        rect(0, 2 * third, third, third),
+        rect(third, 2 * third, third, third),
+        rect(2 * third, 2 * third, third, third),
+      ];
+    default: {
+      const rows = Math.ceil(count / 3);
+      return Array.from({ length: rows }, (_, r) =>
+        across(Math.min(3, count - r * 3), r / rows, 1 / rows),
+      ).flat();
+    }
+  }
+}
+
+/** Shares this close count as the same line — thirds don't add up exactly. */
+const EDGE_EPSILON = 1e-6;
+
+/** Every edge two open pieces share: where it runs, and which way. */
+function openSeams(cells: readonly CollageCell[]) {
+  const rects = mosaicRects(cells.length);
+  const open = (i: number) => !(cells[i].photo || cells[i].seed);
+  const seams: { key: string; vertical: boolean; at: number; from: number; length: number }[] = [];
+  for (let i = 0; i < cells.length; i++) {
+    for (let j = 0; j < cells.length; j++) {
+      if (i === j || !open(i) || !open(j)) continue;
+      const a = rects[i];
+      const b = rects[j];
+      // a's right edge on b's left edge, or a's foot on b's head.
+      if (Math.abs(a.x + a.w - b.x) < EDGE_EPSILON) {
+        const from = Math.max(a.y, b.y);
+        const length = Math.min(a.y + a.h, b.y + b.h) - from;
+        if (length > EDGE_EPSILON) {
+          seams.push({ key: `${cells[i].key}|${cells[j].key}`, vertical: true, at: b.x, from, length });
+        }
+      }
+      if (Math.abs(a.y + a.h - b.y) < EDGE_EPSILON) {
+        const from = Math.max(a.x, b.x);
+        const length = Math.min(a.x + a.w, b.x + b.w) - from;
+        if (length > EDGE_EPSILON) {
+          seams.push({ key: `${cells[i].key}-${cells[j].key}`, vertical: false, at: b.y, from, length });
+        }
+      }
+    }
+  }
+  return seams;
+}
+
 export function PhotoCollage({
   cells,
   ratio = 1,
@@ -260,6 +336,18 @@ export function PhotoCollage({
         seam={0}
         renderCell={(cell) => <MosaicTile key={cell.key} cell={cell} />}
       />
+      {openSeams(cells).map((seam) => (
+        <View
+          key={seam.key}
+          pointerEvents="none"
+          style={[
+            styles.seam,
+            seam.vertical
+              ? { left: `${seam.at * 100}%`, top: `${seam.from * 100}%`, height: `${seam.length * 100}%`, width: MOSAIC_SEAM, marginLeft: -MOSAIC_SEAM / 2 }
+              : { top: `${seam.at * 100}%`, left: `${seam.from * 100}%`, width: `${seam.length * 100}%`, height: MOSAIC_SEAM, marginTop: -MOSAIC_SEAM / 2 },
+          ]}
+        />
+      ))}
       {children}
     </View>
   );
@@ -272,20 +360,19 @@ const styles = StyleSheet.create({
   },
   empty: {
     backgroundColor: colors.surfaceSunken,
-    padding: spacing.sm,
   },
-  // Inset in its square so neighbouring slots keep a band of grey between
-  // their dashes, rounded a step under a card's corner.
+  // The line between two open cells, a shade darker than their grey,
+  // centred on the edge they share.
+  seam: {
+    position: 'absolute',
+    backgroundColor: colors.inkGhost,
+  },
   slot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: layout.stack,
     padding: layout.stack,
-    borderWidth: SLOT_EDGE,
-    borderStyle: 'dashed',
-    borderColor: colors.slotEdge,
-    borderRadius: radii.md,
   },
   plus: {
     width: PLUS_DISC,
@@ -294,26 +381,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  // The fade under a photo's caption, a third of the piece tall.
-  foot: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '35%',
-  },
-  // Pinned to the piece's bottom-left corner, the task over its time.
-  caption: {
-    ...absoluteFill,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    padding: layout.stack,
-    gap: layout.line / 2,
-  },
-  captionShadow: {
-    textShadowColor: colors.onMediaShadow,
-    textShadowRadius: spacing.sm,
   },
   pressed: {
     opacity: 0.85,

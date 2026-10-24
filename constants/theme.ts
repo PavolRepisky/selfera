@@ -69,7 +69,6 @@ const DARK = {
   disabledInk: '#636366',
   scrimLight: 'rgba(0,0,0,0.5)',
   frostBackdrop: 'rgba(0,0,0,0.3)',
-  slotEdge: '#636366',
   inkAside: '#636366',
 } as const;
 
@@ -222,12 +221,8 @@ const LIGHT = {
    * soft `onMediaShadow`, since it's drawn close in and has to hold white
    * over a bright photo on its own. The same in light and dark. */
   coverLetteringShadow: 'rgba(0,0,0,0.55)',
-  /** The dashed edge of an open slot in Tasks' post — between `inkGhost`,
-   * which vanishes on the slot's grey, and `inkMuted`, which reads as a
-   * drawn box rather than a place a photo goes. */
-  slotEdge: '#B5B4B1',
   /** A count set beside a section heading — "3 of 6 friends" on Community.
-   * The same step between `inkGhost` and `inkMuted` as `slotEdge`: at the
+   * Between `inkGhost` and `inkMuted`: at the
    * reading grey it competed with the heading, at the ghost grey it faded
    * out. */
   inkAside: '#B5B4B1',
@@ -308,17 +303,11 @@ export const gradients = {
    */
   accent: ['#F7C3A0', '#EFA3B7', '#D8C6EE'],
   /**
-   * The shade rising from the foot of a cover photo — Challenges' featured
+   * The shade rising from the foot of a cover photo — Discover's featured
    * card — clear through the top half so the picture keeps its colour, dark
    * enough at the bottom for white type to hold on any shot.
    */
   coverShade: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.68)'],
-  /**
-   * The faint fade under a post photo's task and time, at its foot — about
-   * half the cover card's, since it only has to steady two small lines and
-   * the photo is the post.
-   */
-  photoFoot: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.36)'],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -622,17 +611,6 @@ export const type = {
     lineHeight: 15,
     // Drawn in, so the word sets as one wordmark rather than spelled out.
     letterSpacing: -0.75,
-  },
-  /** The task a photo in Tasks' post proves and the time it was shot, at
-   * its foot like a camera's date stamp — in Quicksand Bold, as the posted
-   * day's own slides set theirs; the cover's face stays the cover's. Both
-   * lines at one size: the task leads by coming first, not by being
-   * bigger. */
-  shotCaption: {
-    ...face.bodyBold,
-    fontSize: 13,
-    lineHeight: 17,
-    letterSpacing: bodyTracking,
   },
   /** The time over the task across a posted photo's middle — the cover's
    * Inter Tight in its Medium, so a post's slides and its cover read as

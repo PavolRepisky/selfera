@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -6,6 +7,7 @@ import {
   Alert,
   Linking,
   Platform,
+  Pressable,
   StyleSheet,
   TextInput,
   View,
@@ -22,27 +24,31 @@ import { EmptyState } from '@/components/EmptyState';
 import { DayCover, POST_RATIO, shotClock } from '@/components/DayCover';
 import { PhotoCollage, type CollageCell } from '@/components/PhotoCollage';
 import { PhotoViewer } from '@/components/PhotoViewer';
+import { Placeholder } from '@/components/Placeholder';
 import { Pill } from '@/components/Pill';
 import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ShareCoverSheet } from '@/components/ShareCoverSheet';
 import { SlideToConfirm } from '@/components/SlideToConfirm';
 import { Text } from '@/components/Text';
-import { colors, colorsFor, gradients, layout, radii, type } from '@/constants/theme';
+import { absoluteFill, colors, colorsFor, gradients, layout, radii, type } from '@/constants/theme';
 import {
+  DEFAULT_TASK_REMINDER,
   useApp,
   useDayProgress,
 } from '@/hooks/useAppState';
 import { useChallengeCards } from '@/hooks/useChallengeCards';
-import { clockLeftToday, timeStamp } from '@/lib/format';
+import { clockLeftToday, clockTime, timeStamp } from '@/lib/format';
 import { isPosted, POST_COUNTDOWN_MS } from '@/lib/round';
 
 /**
  * Today's post being filled in, at the shape it goes up in: the post edge to
- * edge under the bar, a piece for every task — a photo once it's in, a
- * dashed slot naming the task and how to shoot it until then — with the
+ * edge under the bar, a cell for every task — a photo once it's in, a
+ * grey cell naming the task and how to shoot it until then — with the
  * day's clock floating at its top. Under it, the era you're on as one row:
  * its photo, the day and how many are in, the lives left, opening the era.
+ * Then, while some are still to shoot, the day's tasks as a list: each one's
+ * name and how to shoot it, its reminder, and a tick once its photo is in.
  *
  * Tapping a slot opens the camera on that slot's task, and the shot goes
  * straight into it; there is nothing else to press. Tasks have no order and
@@ -82,16 +88,28 @@ const CHEVRON = 18;
 const CAPTION_SAVE_MS = 800;
 /** The longest caption the server keeps. */
 const CAPTION_MAX = 500;
-/** The countdown's ring, and the tick that takes its place once the post is
- * up — a size that heads the status row without crowding its two lines. */
+/** The countdown's ring — a size that heads the status row without
+ * crowding its two lines. */
 const RING = 56;
 /** The ring's stroke — the profile's challenge bar's. */
 const RING_STROKE = 6;
-const STATUS_MARK = RING;
+/** The tick heading the status row once the post is up — the size of the
+ * row's title line pair rather than the ring's, since there's nothing left
+ * to count down and a big tick only shouted. */
+const STATUS_MARK = 28;
 /** Your face at the head of the caption, a comment composer's. */
 const COMPOSER_AVATAR = 32;
 /** A caption field tall enough for three lines before it grows. */
 const CAPTION_MIN_HEIGHT = 72;
+/** A task row's square at its head — its photo once it's in, the camera
+ * until then — about two lines of the row's type tall. */
+const TASK_THUMB = 48;
+/** The camera in an open task's square. */
+const TASK_CAMERA = 22;
+/** The tick at a task row's end, a step under the thumbnail. */
+const TASK_MARK = 24;
+/** The alarm glyph beside a reminder's time, at the time's cap height. */
+const TASK_ALARM = 13;
 
 /** "1:05" — the minutes and seconds left of a post's countdown. */
 const clock = (ms: number) => {
@@ -120,6 +138,7 @@ export default function TasksScreen() {
     setCaption,
     postNow,
     profile,
+    reminders,
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
@@ -188,6 +207,13 @@ export default function TasksScreen() {
    * fading — presenting the camera or a dialog on top of a modal that is
    * still dismissing loses it on iOS. */
   const afterViewer = useRef<(() => void) | null>(null);
+  // A new day closes whatever was open over the last one: its viewer, its
+  // remove dialog and its story sheet all point at the day that's gone.
+  useEffect(() => {
+    setViewing(null);
+    setRemoving(null);
+    setSharing(false);
+  }, [currentDay]);
 
   if (!inChallenge) {
     return (
@@ -340,9 +366,11 @@ export default function TasksScreen() {
               <Pill
                 tone="floating"
                 overMedia
-                icon="time-outline"
+                icon="time"
                 label={badge}
                 tabular={!waiting}
+                bold
+                style={styles.badgePill}
               />
             </View>
           ) : null}
@@ -388,11 +416,41 @@ export default function TasksScreen() {
           />
         ) : null}
 
+        {/* The day's tasks, while some are still to shoot: each one's name
+            and how to shoot it, when it nudges you while it's open, and its
+            photo and a tick once it's in. A row does what its piece does.
+            How many are in is the era row's to say, just above. Before Day 1
+            they're the tasks every day will hold, not today's. Once every
+            photo is in, composing the post takes this place. */}
+        {allDone ? null : (
+          <View style={styles.tasks}>
+            <Text variant="sectionHeading">{waiting ? 'Daily tasks' : 'Today'}</Text>
+            {rows.map((row, slot) => {
+              const remindAt = reminders.tasks[row.task.id] === undefined
+                ? DEFAULT_TASK_REMINDER
+                : reminders.tasks[row.task.id];
+              return (
+                <TaskRow
+                  key={row.task.id}
+                  label={row.task.label}
+                  note={row.task.note}
+                  done={row.done}
+                  photo={row.photo}
+                  seed={row.photoSeed}
+                  time={row.done && row.time ? shotClock(row.time) : undefined}
+                  remindAt={remindAt === null ? undefined : clockTime(remindAt)}
+                  onPress={cells[slot].onPress}
+                />
+              );
+            })}
+          </View>
+        )}
+
         {/* Every photo in: composing the post — the caption with your face
             at its head, then one window with the time left in a ring draining
             in the accent and a slide to post it now, last, where the thumb
-            is. Once it's up: a tick, the caption as the post shows it, and
-            the ways on. */}
+            is. Once it's up: a small tick saying so, then saving the day as a
+            story and seeing it on Community, side by side. */}
         {allDone ? (
           countingDown ? (
             <View style={styles.finish}>
@@ -459,20 +517,12 @@ export default function TasksScreen() {
                 </View>
               </View>
 
-              {/* The caption as the post shows it, opening on your handle. */}
-              {savedCaption ? (
-                <Text variant="body" style={styles.postedCaption}>
-                  <Text variant="copyBold">{profile.handle} </Text>
-                  {savedCaption}
-                </Text>
-              ) : null}
-
               <View style={styles.postedActions}>
                 <Pill
                   tone="solid"
                   size="lg"
                   icon="download-outline"
-                  label="Save your day"
+                  label="Save"
                   onPress={() => setSharing(true)}
                   style={styles.postedAction}
                 />
@@ -480,7 +530,7 @@ export default function TasksScreen() {
                   tone="outline"
                   size="lg"
                   icon="people-outline"
-                  label="Community"
+                  label="View post"
                   onPress={() => router.navigate('/community')}
                   style={styles.postedAction}
                 />
@@ -556,7 +606,7 @@ export default function TasksScreen() {
       />
 
       <ShareCoverSheet
-        visible={sharing && allDone}
+        visible={sharing && isUp}
         onDismiss={() => setSharing(false)}
         cells={cells}
         day={currentDay}
@@ -576,6 +626,71 @@ export default function TasksScreen() {
         ]}
       />
     </>
+  );
+}
+
+/**
+ * One of the day's tasks as a row: a square at its head — the photo once
+ * it's in, the camera until then — the task's name over how to shoot it,
+ * kept once it's done, and at its end the reminder's time while it's open and
+ * the tick that fills once it's done. Flat on the page, like a to-do list.
+ */
+function TaskRow({
+  label,
+  note,
+  done,
+  photo,
+  seed,
+  time,
+  remindAt,
+  onPress,
+}: {
+  label: string;
+  note?: string;
+  done: boolean;
+  photo?: CollageCell['photo'];
+  seed?: string | null;
+  time?: string;
+  remindAt?: string;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={done ? `${label}, done${time ? ` at ${time}` : ''}` : `Take the ${label} photo`}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [styles.taskRow, pressed && styles.pressed]}
+    >
+      <View style={styles.taskThumb}>
+        {done && photo ? (
+          <Image source={photo} style={absoluteFill} contentFit="cover" />
+        ) : done ? (
+          <Placeholder seed={seed ?? label} radius={0} style={absoluteFill} />
+        ) : (
+          <Ionicons name="camera-outline" size={TASK_CAMERA} color={colors.ink} />
+        )}
+      </View>
+      <View style={styles.taskText}>
+        <Text variant="copy" numberOfLines={1}>
+          {label}
+        </Text>
+        {note ? (
+          <Text variant="meta" color={colors.inkMuted} numberOfLines={2}>
+            {note}
+          </Text>
+        ) : null}
+      </View>
+      {!done && remindAt ? (
+        <View style={styles.taskReminder}>
+          <Ionicons name="alarm-outline" size={TASK_ALARM} color={colors.inkMuted} />
+          <Text variant="meta" color={colors.inkMuted}>
+            {remindAt}
+          </Text>
+        </View>
+      ) : null}
+      <CheckCircle size={TASK_MARK} empty={!done} />
+    </Pressable>
   );
 }
 
@@ -633,6 +748,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
+  },
+  // A pill sits at its row's start by default, which would override the
+  // wrapper's centring.
+  badgePill: {
+    alignSelf: 'center',
   },
   // The era's row on the grey of a native list's card, so it reads as a way
   // into the era rather than loose text under the post.
@@ -722,11 +842,7 @@ const styles = StyleSheet.create({
     minHeight: CAPTION_MIN_HEIGHT,
     textAlignVertical: 'top',
   },
-  // On the page, as it reads under the post on Community — in from the
-  // edge as far as the status row's own text, so the two line up.
-  postedCaption: {
-    paddingHorizontal: layout.block,
-  },
+  // The two ways on from a posted day, side by side in equal halves.
   postedActions: {
     flexDirection: 'row',
     gap: layout.stack,
@@ -740,5 +856,38 @@ const styles = StyleSheet.create({
     height: RING,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // The heading's own gap down to the first row comes from the list's gap,
+  // a step wider than a heading's, which suits rows this tall.
+  tasks: {
+    marginTop: layout.section,
+    gap: layout.block,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.inline,
+  },
+  // Rounded as the era row's photo is, on the fill grey while it's open.
+  taskThumb: {
+    width: TASK_THUMB,
+    height: TASK_THUMB,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceSunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskText: {
+    flex: 1,
+    gap: layout.line / 2,
+  },
+  taskReminder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.line,
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

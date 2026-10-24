@@ -1,7 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { absoluteFill, colors, layout } from '@/constants/theme';
-import { shotClock } from './DayCover';
+import { clock24 } from '@/lib/format';
 import { Text } from './Text';
 
 /** The caption's drop: a short soft blur a point below the letters. */
@@ -29,7 +29,7 @@ export function ShotStamp({ time, label, style }: ShotStampProps) {
     <View style={[styles.root, style]} pointerEvents="none">
       {time ? (
         <Text variant="shotTitle" color={colors.shotStamp} center style={styles.line}>
-          {shotClock(time)}
+          {clock24(time.trim())}
         </Text>
       ) : null}
       {label ? (

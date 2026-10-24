@@ -55,7 +55,7 @@ export interface PillProps {
   bold?: boolean;
   /**
    * The label's type, when the pill's size and tone don't pick the right one
-   * on their own — the Challenges cards' photo badges set theirs a size up
+   * on their own — Discover's cards' photo badges set theirs a size up
    * from the small bold default, to read at a glance over the photo.
    */
   labelVariant?: TextProps['variant'];
@@ -216,6 +216,10 @@ function SystemPill({
             quicksand(size === 'sm' ? 'subheadline' : 'body', 'semibold'),
             foregroundStyle(labelInk),
             padding({ vertical: PILL_LIFT, horizontal: PILL_WIDEN }),
+            // The capsule is drawn round the label, so a filling pill's label
+            // has to reach across too — a frame on the button alone widened
+            // the space it sat in but left the capsule hugging the words.
+            ...(fills ? [frame({ maxWidth: Number.MAX_SAFE_INTEGER })] : []),
           ]}
         />
       </Button>
@@ -324,6 +328,11 @@ function DrawnPill({
 
   if (!onPress) return body;
 
+  // A pill its row stretches — one of a pair of equal buttons — needs the
+  // stretch on the pressable round it too, or that hugs the label and the
+  // pill inside it can't grow.
+  const { flex, alignSelf, width } = StyleSheet.flatten(style) ?? {};
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -334,7 +343,7 @@ function DrawnPill({
       pointerEvents={visible ? 'auto' : 'none'}
       // The glass answers the press itself — it swells under the finger — so
       // dimming it as well would be a second press drawn over the first.
-      style={({ pressed }) => (pressed && !glassy ? styles.pressed : undefined)}
+      style={({ pressed }) => [{ flex, alignSelf, width }, pressed && !glassy && styles.pressed]}
     >
       {body}
     </Pressable>
