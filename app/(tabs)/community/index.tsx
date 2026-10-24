@@ -1,7 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useColorScheme,
+  type ScrollViewInstance,
+} from 'react-native';
 
 import { Avatar, type AvatarSource } from '@/components/Avatar';
 import { PrimaryButton } from '@/components/Buttons';
@@ -10,18 +17,23 @@ import { EmptyState } from '@/components/EmptyState';
 import { FriendCard } from '@/components/FriendCard';
 import { cornerButtonSize, cornerIconSize } from '@/components/IconButton';
 import { Pill } from '@/components/Pill';
-import { ScreenScroll } from '@/components/Screen';
+import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { TaskRing } from '@/components/TaskRing';
 import { Text } from '@/components/Text';
-import { colors, layout, radii } from '@/constants/theme';
+import { colors, colorsFor, layout, radii } from '@/constants/theme';
 import { type Friend } from '@/data/content';
 import { orderBySlot, useApp } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { isPosted } from '@/lib/round';
 
 type Tab = 'friends' | 'members';
+
+/** A heading's link: the system blue on the iPhone, where links are tinted;
+ * the reading grey on the drawn design, which has no accent — Discover's own
+ * rule for its See all. */
+const LINK = NATIVE_HEADER ? colors.systemAccent : colors.inkMuted;
 
 /** A face in the "Still going today" row — the canvas's 72, a step up from
  * the old 64 so the row reads as stories rather than a strip of avatars;
@@ -40,12 +52,12 @@ const MINI_RING = 2;
 /** A face on a progress row — a step under a post's own avatar, since the
  * row is a line of detail, not a post. */
 const ROW_AVATAR = 28;
-/** A face on a member card — the size of the old story ring, big enough to
- * know a stranger by before adding them. */
-const MEMBER_AVATAR = 64;
-/** Two cards and most of a third across a phone, so the row says it
- * scrolls — and wide enough that "Request sent" fits the pill on one line. */
-const MEMBER_CARD = 140;
+/** A face in its ring on a member card — the canvas's 60, a step under the
+ * Friends row's, since the card around it already gives it weight. */
+const MEMBER_RING = 60;
+/** The canvas's card: two and most of a third across a phone, so the row
+ * says it scrolls. */
+const MEMBER_CARD = 132;
 /** Wide enough for a first name, so every row's bar starts on one line. */
 const ROW_NAME = 56;
 /** The ring's own stroke — the bars are the ring laid straight, the way the
@@ -80,6 +92,10 @@ const finished = (person: Friend, now = Date.now()) =>
  */
 export default function CommunityScreen() {
   const router = useRouter();
+  // The lock card's face rings take a plain colour: on the iPhone an
+  // adaptive border came back black once the card was drawn again after a
+  // tab switch.
+  const plainColors = colorsFor(useColorScheme());
   const {
     feedLocked,
     inChallenge,
@@ -247,6 +263,9 @@ export default function CommunityScreen() {
       .map((friend) => friend.id),
   ].join(',');
   const friendsFinished = friends.filter((friend) => finished(friend, now));
+  // The Friends headings count your friends alone — "2 of 6 friends" — so
+  // the two add up to the same whole; your own face and post sit outside it.
+  const friendsOf = `${friends.length} friend${friends.length === 1 ? '' : 's'}`;
   const membersFinished = members.filter((person) => finished(person, now));
 
   // Everyone's day at a glance for the empty "Finished today" card, furthest
@@ -264,22 +283,16 @@ export default function CommunityScreen() {
     })),
   ].sort((a, b) => b.done / Math.max(b.total, 1) - a.done / Math.max(a.total, 1));
 
-  // Everyone else in your round: the members the tab lists, plus friends of
-  // yours who are in it too — the round's own count, less you.
-  const othersInRound = Math.max(roundSize - (inChallenge ? 1 : 0), members.length);
-  const membersGoing = members.filter((person) => !finished(person, now));
+  // Members' "Finished today" counts out of the whole round, you included,
+  // as your post is in the feed under it — never fewer than the tab lists.
+  const roundTotal = Math.max(roundSize, members.length + (myDayRunning ? 1 : 0));
+  const roundOf = `${roundTotal.toLocaleString('en-US')} member${roundTotal === 1 ? '' : 's'}`;
 
-  // The lock card speaks to the tab it's on: your friends, or everyone else
-  // in the challenge.
-  const onFriends = tab === 'friends';
-  const lockFaces = onFriends ? friendsGoing : membersGoing;
+  // The lock card, on Friends: who of yours is still going.
+  const lockFaces = friendsGoing;
   const lockCount = lockFaces.length;
-  const lockGoing = `${lockCount.toLocaleString('en-US')} ${onFriends ? 'friend' : 'member'}${
-    lockCount === 1 ? '' : 's'
-  } still going`;
-  const lockHint = onFriends
-    ? "Finish any of today's tasks to see how your friends are doing."
-    : "Finish any of today's tasks to see how other members are doing.";
+  const lockGoing = `${lockCount.toLocaleString('en-US')} friend${lockCount === 1 ? '' : 's'} still going`;
+  const lockHint = "Finish any of today's tasks to see how your friends are doing.";
 
   const renderPost = (person: Friend, accessory?: React.ReactNode) => (
     <View key={person.id} onLayout={(e) => onPostLayout(person.id)(e.nativeEvent.layout.y)}>
@@ -322,7 +335,9 @@ export default function CommunityScreen() {
         />
 
 
-        {locked ? (
+        {/* Friends only: on Members each post's own blur and pill already
+            say what's held back, and a card over strangers asked too much. */}
+        {locked && tab === 'friends' ? (
           <Card flat radius={radii.lg} style={styles.sunkenCard}>
             <View style={styles.cardBody}>
               <View style={styles.lockRow}>
@@ -344,7 +359,11 @@ export default function CommunityScreen() {
                         key={person.id}
                         source={person.avatar}
                         size={MINI_AVATAR}
-                        style={[styles.miniAvatar, i > 0 && styles.miniTucked]}
+                        style={[
+                          styles.miniAvatar,
+                          { borderColor: plainColors.surface },
+                          i > 0 && styles.miniTucked,
+                        ]}
                       />
                     ))}
                   </View>
@@ -352,9 +371,12 @@ export default function CommunityScreen() {
                     {lockGoing}
                   </Text>
                 </View>
+                {/* Small like the member cards' Add, but filled: it's the one
+                    thing the locked tab asks of you. */}
                 <Pill
                   tone="solid"
-                  icon="camera-outline"
+                  size="sm"
+                  icon="camera"
                   label="Shoot a task"
                   bold
                   onPress={openTasks}
@@ -370,9 +392,10 @@ export default function CommunityScreen() {
                 once it's open. */}
             {!locked && (friendsGoing.length > 0 || (myDayRunning && !myFinished)) ? (
               <View style={styles.section}>
-                <Text variant="meta" color={colors.inkMuted} style={styles.heading}>
-                  Still going today
-                </Text>
+                <SectionHeading
+                  title="Still going"
+                  meta={friends.length ? `${friendsGoing.length} of ${friendsOf}` : undefined}
+                />
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -423,7 +446,7 @@ export default function CommunityScreen() {
                 way down: the heading, then what's under it or why not. */}
             <SectionHeading
               title="Finished today"
-              meta={String(friendsFinished.length + (myPost ? 1 : 0))}
+              meta={friends.length ? `${friendsFinished.length} of ${friendsOf}` : undefined}
             />
 
             {loaded && !friends.length ? (
@@ -489,9 +512,15 @@ export default function CommunityScreen() {
                 the posts' requests, so adding here flips their Add too. */}
             {members.length ? (
               <View style={styles.section}>
+                {/* The era's page lists everyone in it, so See all lands
+                    there rather than on a list of its own. */}
                 <SectionHeading
                   title="In it with you"
-                  meta={othersInRound.toLocaleString('en-US')}
+                  action={{
+                    label: 'See all',
+                    onPress: () =>
+                      router.push({ pathname: '/feed/[id]', params: { id: challenge.id } }),
+                  }}
                 />
                 <ScrollView
                   horizontal
@@ -516,7 +545,11 @@ export default function CommunityScreen() {
                 is in the round's feed like everyone else's. */}
             <SectionHeading
               title="Finished today"
-              meta={String(membersFinished.length + (myPost ? 1 : 0))}
+              meta={
+                inChallenge
+                  ? `${(membersFinished.length + (myPost ? 1 : 0)).toLocaleString('en-US')} of ${roundOf}`
+                  : undefined
+              }
             />
 
             {loaded && !inChallenge ? (
@@ -579,13 +612,28 @@ export default function CommunityScreen() {
 
 /** A section's title with its quiet count at the far end — the way My
  * Profile sets "Days" against its switch. */
-function SectionHeading({ title, meta }: { title: string; meta: string }) {
+function SectionHeading({
+  title,
+  meta,
+  action,
+}: {
+  title: string;
+  meta?: string;
+  /** A link in the count's place — "See all", as Discover's Trending has. */
+  action?: { label: string; onPress: () => void };
+}) {
   return (
     <View style={styles.sectionHeading}>
       <Text variant="sectionHeading">{title}</Text>
-      <Text variant="metaBold" color={colors.inkMuted}>
-        {meta}
-      </Text>
+      {action ? (
+        <Text variant="metaBold" color={LINK} accessibilityRole="link" onPress={action.onPress}>
+          {action.label}
+        </Text>
+      ) : meta ? (
+        <Text variant="metaBold" color={colors.inkAside}>
+          {meta}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -613,12 +661,20 @@ function StoryFace({
         total={total}
         watched={watched}
         size={STORY_RING}
+        badge={false}
         onPress={onPress}
         accessibilityLabel={`${name}, ${done} of ${total} done`}
       />
-      <Text variant="meta" numberOfLines={1} center style={styles.storyName}>
-        {name}
-      </Text>
+      {/* The count under the name rather than a badge on the ring, so the
+          ring stays whole and the number reads as a line of text. */}
+      <View style={styles.storyText}>
+        <Text variant="copyBold" numberOfLines={1} center>
+          {name}
+        </Text>
+        <Text variant="badge" color={colors.inkMuted} numberOfLines={1} center>
+          {`${done} of ${total}`}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -646,26 +702,39 @@ function MemberCard({
         onPress={onPress}
         style={({ pressed }) => [styles.memberWho, pressed && styles.pressed]}
       >
-        <Avatar source={person.avatar} size={MEMBER_AVATAR} />
+        {/* Their day's ring, as the Friends row draws it — the count is the
+            line under the name, so the ring carries no badge. */}
+        <TaskRing
+          avatar={person.avatar}
+          done={doneCount(person)}
+          total={person.tasks.length}
+          size={MEMBER_RING}
+          badge={false}
+        />
         <View style={styles.memberText}>
           <Text variant="copyBold" numberOfLines={1} center>
             {person.name}
           </Text>
-          <Text variant="badge" color={colors.inkMuted} center>
-            {finished(person)
-              ? 'Done today'
-              : `${doneCount(person)}/${person.tasks.length} today`}
+          {/* Friends you share say who a stranger is — the ring already
+              says how their day is going. Said even when it's none, so
+              every card in the row stands the same height. */}
+          <Text variant="badge" color={colors.inkMuted} numberOfLines={1} center>
+            {person.mutualCount
+              ? `${person.mutualCount} mutual friend${person.mutualCount === 1 ? '' : 's'}`
+              : 'No mutual friends'}
           </Text>
         </View>
       </Pressable>
-      {/* Sent, the pill turns white rather than the posts' muted grey — on
-          the card's own fill grey, grey vanished. */}
+      {/* The quiet capsule, sized to its word: on the iPhone the system's
+          soft blue, elsewhere white on the card's grey. Sent, the words go
+          grey — the request is waiting on them. */}
       <Pill
-        tone={added ? 'floating' : 'solid'}
+        tone="floating"
         size="sm"
         bold
         icon={added ? undefined : 'person-add'}
         label={added ? 'Request sent' : 'Add'}
+        labelColor={added ? colors.inkMuted : undefined}
         onPress={onToggleAdd}
         style={styles.memberAdd}
       />
@@ -759,11 +828,11 @@ const styles = StyleSheet.create({
   miniStack: {
     flexDirection: 'row',
   },
-  // Ringed in the card's own grey, so each face reads as tucked behind the
-  // next rather than merged into it.
+  // Ringed in white (set where it's drawn), so each face stands off the
+  // card's grey and reads as tucked behind the next rather than merged into
+  // it.
   miniAvatar: {
     borderWidth: MINI_RING,
-    borderColor: colors.surfaceSunken,
     borderRadius: radii.pill,
   },
   miniTucked: {
@@ -771,9 +840,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: layout.section,
-  },
-  heading: {
-    marginBottom: layout.heading,
   },
   // The row runs to the screen's edges, so faces scroll in from under the
   // edge rather than stopping short at the gutter.
@@ -784,30 +850,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.gutter,
     gap: layout.inline,
   },
-  // A heading's gap under the ring leaves room for the badge hanging off it
-  // before the name starts.
   storyFace: {
     width: STORY_RING,
     alignItems: 'center',
-    gap: layout.heading,
+    gap: layout.stack,
   },
-  storyName: {
+  storyText: {
     alignSelf: 'stretch',
   },
   memberRow: {
     paddingHorizontal: layout.gutter,
     gap: layout.stack,
   },
-  // The fill grey the page's other cards sit in; stretched so the Add runs
-  // the card's width.
+  // The fill grey the page's other cards sit in, everything centred down
+  // it; held close at the sides so a name has the card's width to fit in.
   memberCard: {
     width: MEMBER_CARD,
-    padding: layout.block,
+    paddingVertical: layout.heading,
+    paddingHorizontal: layout.stack,
     gap: layout.stack,
+    alignItems: 'center',
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceSunken,
   },
   memberWho: {
+    alignSelf: 'stretch',
     alignItems: 'center',
     gap: layout.stack,
   },
@@ -815,7 +882,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   memberAdd: {
-    alignSelf: 'stretch',
+    alignSelf: 'center',
   },
   pressed: {
     opacity: 0.7,

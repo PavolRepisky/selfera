@@ -52,6 +52,9 @@ export interface Friend {
   isFriend?: boolean;
   requestSent?: boolean;
   requestReceived?: boolean;
+  /** How many of your friends are friends of theirs — set for the Members
+   * tab, where they're a stranger and that's what says who they are. */
+  mutualCount?: number;
   /**
    * Other people already talking under this post — everyone here is someone
    * else in `PEOPLE`, the same closed roster the feed itself draws from,

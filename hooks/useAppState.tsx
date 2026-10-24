@@ -51,7 +51,7 @@ import { AppState as AppLifecycle } from 'react-native';
 
 export interface TaskProgress {
   done: boolean;
-  /** Formatted completion stamp, e.g. "7:19am". */
+  /** Formatted completion stamp, e.g. "07:19". */
   time?: string;
   /** Seed for the proof photo, or null if none was attached. */
   photoSeed?: string | null;

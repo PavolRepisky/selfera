@@ -116,11 +116,13 @@ export async function fetchToday(scope: 'friends' | 'members'): Promise<{
   const mids = rows.map((r) => r.membership_id);
   const challengeIds = [...new Set(rows.map((r) => r.challenge_id))];
   const days = [...new Set(rows.map((r) => r.day))];
-  const [challenges, tasks, completions, reactions] = await Promise.all([
+  const [challenges, tasks, completions, reactions, mutuals] = await Promise.all([
     supabase.from('challenges').select('id, slug, name').in('id', challengeIds),
     supabase.from('challenge_tasks').select('*').in('challenge_id', challengeIds).order('position'),
     supabase.from('task_completions').select('*').in('membership_id', mids).in('day', days),
     supabase.from('reactions').select('membership_id, day, emoji').in('membership_id', mids).in('day', days),
+    // Only members are strangers; a friend's mutuals aren't what the tab says.
+    scope === 'members' ? mutualCounts(rows.map((r) => r.user_id)) : Promise.resolve(new Map<string, number>()),
   ]);
 
   const todayOf = new Map(rows.map((r) => [r.membership_id, r.day]));
@@ -155,6 +157,7 @@ export async function fetchToday(scope: 'friends' | 'members'): Promise<{
       challengeName: challenge?.name,
       isFriend: r.is_friend,
       requestSent: r.request_sent,
+      mutualCount: scope === 'members' ? (mutuals.get(r.user_id) ?? 0) : undefined,
       tasks: dayTasks(
         allTasks.filter((t) => t.challenge_id === r.challenge_id),
         shots.filter((c) => c.membership_id === r.membership_id),
@@ -163,6 +166,26 @@ export async function fetchToday(scope: 'friends' | 'members'): Promise<{
     };
   });
   return { people, stats };
+}
+
+/**
+ * How many of your friends each of `userIds` is friends with. Read straight
+ * off the `friends` view — who's friends with whom is as public as profiles
+ * are — so it needs no function of its own on the server.
+ */
+async function mutualCounts(userIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (!userIds.length) return counts;
+  const mine = must(
+    await supabase.from('friends').select('friend_id').eq('user_id', await myId()),
+  ).flatMap((r) => r.friend_id ?? []);
+  if (!mine.length) return counts;
+  const shared = must(
+    await supabase.from('friends').select('user_id').in('user_id', userIds).in('friend_id', mine),
+  );
+  // A view's columns come back typed as nullable, though these never are.
+  for (const { user_id: id } of shared) if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return counts;
 }
 
 /** How many are in your round, you included — the Members tab's count. */

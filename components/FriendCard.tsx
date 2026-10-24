@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -16,15 +15,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { absoluteFill, colors, gradients, layout, radii, shadows, tapSlop } from '@/constants/theme';
+import { absoluteFill, colors, layout, radii, shadows, tapSlop } from '@/constants/theme';
 import { LOVE, type Friend } from '@/data/content';
 import { useApp, useEraLength } from '@/hooks/useAppState';
 import { useSocial } from '@/hooks/useSocial';
 import { postKey } from '@/lib/backend/social';
-import { addDays, relativeDay } from '@/lib/format';
+import { addDays, clock24, relativeDay } from '@/lib/format';
 import { startOfToday } from '@/lib/round';
 import { CommentsSheet, type CommentEntry } from './CommentsSheet';
-import { DayCover, POST_RATIO, shotClock } from './DayCover';
+import { CoverMark, DayCover, POST_RATIO, shotClock } from './DayCover';
 import { PostHeader } from './PostHeader';
 import { LOCK_BLUR_RADIUS, LockedOverlay } from './LockedOverlay';
 import { type CollageCell } from './PhotoCollage';
@@ -38,10 +37,11 @@ export { LOCK_BLUR_RADIUS };
 /** The post's own shape, shared with its tile on a profile. */
 const CAROUSEL_RATIO = POST_RATIO;
 
+/** The slide caption's drop: a short soft blur a point below the letters. */
+const STAMP_SHADOW_RADIUS = 4;
+const STAMP_SHADOW_OFFSET = { width: 0, height: 1 };
 
-/** Blur on a photo caption's drop shadow — wide and soft, so it lifts the
- * white type off a bright shot without drawing an edge around the letters. */
-const STAMP_SHADOW_RADIUS = 12;
+
 
 export interface FriendCardProps {
   friend: Friend;
@@ -97,12 +97,11 @@ const ACTION_SLOP = { top: tapSlop(ACTION_ROW), bottom: tapSlop(ACTION_ROW) };
 /** One carousel page marker riding the photo's bottom edge. */
 const CAROUSEL_DOT = 6;
 
-/** Minutes past midnight for a task's "7:40 AM", so times compare. */
+/** Minutes past midnight for a task's "07:40" (or an older "7:40 AM"), so
+ * times compare. */
 const clockMinutes = (time: string) => {
-  const match = /^(\d{1,2}):(\d{2})\s*([AP]M)$/i.exec(time.trim());
-  if (!match) return -1;
-  const hour = (Number(match[1]) % 12) + (match[3].toUpperCase() === 'PM' ? 12 : 0);
-  return hour * 60 + Number(match[2]);
+  const match = /^(\d{1,2}):(\d{2})$/.exec(clock24(time.trim()));
+  return match ? Number(match[1]) * 60 + Number(match[2]) : -1;
 };
 
 /** When the day became a post: the latest time on any of its tasks — the
@@ -149,9 +148,11 @@ export function FriendCard({
   const postTasks = post?.tasks ?? friend.tasks;
   // When the day was: which day — counted back from the poster's own today,
   // since `friend.day` is the day they're on — and the time it was finished,
-  // once it was, a space apart: "Yesterday 9:12 PM", "Oct 6 8:05 AM".
+  // once it was, a space apart: "Yesterday 21:12", "Oct 6 08:05". Out of
+  // a days feed it's Community, where every post is today's, so the time
+  // stands alone.
   const finishedTime = finishedAt(postTasks);
-  const time = [relativeDay(addDays(startOfToday(), day - friend.day)), finishedTime]
+  const time = [daysFeed ? relativeDay(addDays(startOfToday(), day - friend.day)) : null, finishedTime]
     .filter(Boolean)
     .join(' ');
   // A post is one membership's day; everything said and felt about it is
@@ -334,36 +335,36 @@ export function FriendCard({
         ) : (
           <Placeholder seed={item.seed} radius={0} style={slideSize} />
         )}
-        {/* What it proves and when it was shot, in the corner like a
-            camera's date stamp — the middle of a shot is its subject, and
-            that's what the photo is there to show. Not while locked: a
-            caption over a blur is a teaser, not a post. */}
+        {/* When it was shot over what it proves, across the middle of the
+            shot the way a short video titles itself — in white, on only a faint
+            drop, no band behind it, so the photo keeps its
+            colour. Not while locked: a caption over a blur is a teaser, not
+            a post. */}
         {(item.time || item.label) && !locked ? (
-          <>
-            <LinearGradient
-              colors={gradients.photoFoot}
-              style={styles.slideFoot}
-              pointerEvents="none"
-            />
-            <View style={styles.slideCaption} pointerEvents="none">
-              {item.label ? (
-                <Text
-                  variant="shotCaption"
-                  color={colors.onMedia}
-                  numberOfLines={1}
-                  style={styles.slideCaptionShadow}
-                >
-                  {item.label}
-                </Text>
-              ) : null}
-              {item.time ? (
-                <Text variant="shotCaption" color={colors.onMedia} style={styles.slideCaptionShadow}>
-                  {shotClock(item.time)}
-                </Text>
-              ) : null}
-            </View>
-          </>
+          <View style={styles.slideCaption} pointerEvents="none">
+            {item.time ? (
+              <Text variant="shotTitle" color={colors.shotStamp} center style={styles.slideStamp}>
+                {shotClock(item.time)}
+              </Text>
+            ) : null}
+            {item.label ? (
+              <Text
+                variant="shotTitle"
+                color={colors.shotStamp}
+                numberOfLines={2}
+                center
+                style={styles.slideStamp}
+              >
+                {/* Lower case, as a caption typed over a short video
+                    reads — "walk 10k steps" — not a title. */}
+                {item.label.toLowerCase()}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
+        {/* Signed at the foot like the cover before it, so every slide of
+            a post carries the app's name when it's screenshotted alone. */}
+        {locked ? null : <CoverMark width={carouselWidth} />}
       </View>
     );
   };
@@ -564,27 +565,19 @@ const styles = StyleSheet.create({
     marginTop: layout.heading,
     marginHorizontal: -layout.gutter,
   },
-  // The fade under the caption, rising from the foot through its lower
-  // third — clear above, so the photo keeps its colour where the type isn't.
-  slideFoot: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '35%',
-  },
-  // Pinned to the photo's bottom-left corner, a card's inset in from both
-  // edges, the task over its time.
+  // Centred on the photo, held a card's inset off its sides so a long task
+  // wraps before it reaches the edge; the two lines set tight, as one title.
   slideCaption: {
     ...absoluteFill,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: layout.card,
-    gap: layout.line,
   },
-  // A soft drop, holding white over a bright shot.
-  slideCaptionShadow: {
-    textShadowColor: colors.onMediaShadow,
+  // A faint drop, close in, so the yellow holds on a bright shot without
+  // reading as a glow round the letters.
+  slideStamp: {
+    textShadowColor: colors.shotStampShadow,
+    textShadowOffset: STAMP_SHADOW_OFFSET,
     textShadowRadius: STAMP_SHADOW_RADIUS,
   },
   // Centred under the photo, a heading's gap below it.

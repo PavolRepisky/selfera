@@ -22,7 +22,7 @@ export interface CollageCell {
   seed?: string | null;
   /**
    * When the task behind this tile was completed, as the app prints a shot's
-   * time — "7:19 AM" (`shotClock`). Only stamped on a tile that actually
+   * time — "07:19" (`shotClock`). Only stamped on a tile that actually
    * carries a photo — a shot still waiting to be taken has no moment to
    * report.
    */

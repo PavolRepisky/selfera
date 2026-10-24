@@ -50,7 +50,7 @@ Headline cuts — Quicksand Bold: `headline` 34 · `headlineSm` 27 · `title` 30
 Functional cuts — Quicksand: `cardTitle` 17 · `body` 16 · `bodyStrong` 16 ·
 `button` 17 · `label` 14 · `micro` 11 · `tab` 12. And the drawn ones:
 the cover's (`coverDay`, `coverEra`, `coverCaption`, `coverMark`, in Allura
-and Inclusive Sans) and `burst` (the heart a double tap pops).
+and Inter Tight) and `burst` (the heart a double tap pops).
 
 Tracking is baked into the scale: `bodyTracking` (-1) on every Quicksand
 string, headlines included. A component building its own

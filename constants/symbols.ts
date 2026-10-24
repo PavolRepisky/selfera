@@ -10,6 +10,7 @@ import type { SFSymbol } from 'expo-symbols';
  */
 const SYMBOLS: Partial<Record<keyof typeof Ionicons.glyphMap, SFSymbol>> = {
   'person-add-outline': 'person.badge.plus',
+  'person-add': 'person.fill.badge.plus',
   search: 'magnifyingglass',
   add: 'plus',
   'settings-outline': 'gearshape',
@@ -28,6 +29,7 @@ const SYMBOLS: Partial<Record<keyof typeof Ionicons.glyphMap, SFSymbol>> = {
   'link-outline': 'link',
   'qr-code-outline': 'qrcode',
   'camera-outline': 'camera',
+  camera: 'camera.fill',
   'sync-outline': 'arrow.2.circlepath',
   heart: 'heart.fill',
   'heart-outline': 'heart',

@@ -90,7 +90,7 @@ shadow, font and spacing step lives in
 iOS each colour is a dynamic light/dark colour.
 
 Type is **Quicksand** for everything, headlines included, with **Allura**
-and **Inclusive Sans** only on a day's cover (`DayCover`). Quicksand runs
+and **Inter Tight** only on a day's cover (`DayCover`). Quicksand runs
 optically light, so every role sits one step up the weight ramp and plain
 copy uses Medium; Regular isn't loaded.
 

@@ -84,7 +84,7 @@ const shot = (taskId: string, n: number) => {
   return pool[n % pool.length];
 };
 
-/** "7:40am" on today's clock — the form a real completion's stamp takes. */
+/** "07:40" on today's clock — the form a real completion's stamp takes. */
 const at = (hour: number, minute: number) => {
   const date = startOfToday();
   date.setHours(hour, minute);
@@ -197,6 +197,9 @@ function person(cast: Cast, n: number, isFriend: boolean): Person {
     challengeId: demoChallenge().id,
     challengeName: demoChallenge().name,
     isFriend,
+    // A spread of shared friends across the members, none for some, so the
+    // card's both lines get seen.
+    mutualCount: isFriend ? undefined : n % 4,
     caption: cast.done === tasks.length ? CAPTIONS[n % CAPTIONS.length] : undefined,
   };
 }

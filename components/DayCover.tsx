@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 
-import { absoluteFill, colors, colorsFor, layout } from '@/constants/theme';
+import { absoluteFill, colors, colorsFor, layout, type } from '@/constants/theme';
+import { clock24 } from '@/lib/format';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { MosaicArrangement } from './PhotoCollage';
 import { Placeholder } from './Placeholder';
@@ -26,20 +27,44 @@ const COVER_WIDTH = 280;
  * by the post on Community and its tile on a profile, so a day keeps one
  * shape wherever it shows. */
 export const POST_RATIO = 3 / 4;
-/** The shade behind the day and era name: a wide, soft oval, about the
- * size of the two lines with room to fade out well past them. */
-const SHADE_WIDTH = 200;
-const SHADE_HEIGHT = 110;
+/** The shade behind the day and era name: a soft oval held close round
+ * the two lines, darker at its heart than it was — the reference cover's,
+ * which sits tight under its lettering rather than washing the middle. */
+const SHADE_WIDTH = 190;
+const SHADE_HEIGHT = 115;
 /** How dark the shade is at its middle — enough to hold white script over a
- * bright photo, faint enough to read as a shadow rather than a patch. */
-const SHADE_OPACITY = 0.55;
-/** The era's name let down onto the day: the script's line box leaves
- * room over its letters, and the name reads as the day's own when it
+ * bright photo, fading out before it reads as a patch. */
+const SHADE_OPACITY = 0.85;
+/** Halfway out, the shade still holds this share of its middle's darkness,
+ * so it reads as an oval rather than a dark dot fading at once. */
+const SHADE_HALFWAY = 0.65;
+/** Whether that oval sits behind the lettering. */
+const SHOW_SHADE = true;
+/** The day's own drop, in the cover's layout: close in and
+ * a touch below the letters, so it outlines them darkly rather than
+ * glowing round them. */
+const LETTERING_SHADOW_RADIUS = 2.5;
+const LETTERING_SHADOW_OFFSET = { width: 0, height: 0.75 };
+/** The era name's drop: the photo slides' (4 blur, 1 down on screen), taken
+ * into the cover's layout by a 390pt phone's scale. */
+const ERA_SHADOW_RADIUS = (4 * COVER_WIDTH) / 390;
+const ERA_SHADOW_OFFSET = { width: 0, height: COVER_WIDTH / 390 };
+/** The era's name drawn up under the day: the script's line box leaves
+ * room under its letters, and the name reads as the day's own when it
  * sits close. */
-const ERA_DROP = 4;
+const ERA_DROP = 2;
 /** "Selfera" at the foot, held back so it signs the cover without being
  * read before the day. */
 const MARK_OPACITY = 0.6;
+/** How far up from the foot it sits, in the cover's own layout — 14pt on a
+ * post scaled to a 390pt phone, clear of the edge without floating off it. */
+const MARK_INSET = (14 * COVER_WIDTH) / 390;
+
+/** Whether the cover carries the day: "Day N/75" in script. The photos
+ * stay undimmed — the shade and the lettering's own drop hold it. */
+const SHOW_DAY = true;
+/** Whether the era's name sits under the day. */
+const SHOW_ERA = true;
 
 /** Past this many photos a piece is too small to carry its time. */
 const MAX_CAPTIONED = 6;
@@ -58,19 +83,16 @@ export interface DayCoverCell {
   key: string;
   photo?: ImageSourcePropType | null;
   seed?: string | null;
-  /** When the task was shot, "7:57am" — laid over its photo. */
+  /** When the task was shot, "07:57" — laid over its photo. */
   time?: string;
   /** The task the photo proves — under its time, where `tasks` asks for it. */
   label?: string;
 }
 
-/** "7:57am" or "7:57 a.m." as the app prints a shot's time everywhere —
- * the cover and a post's own photos alike: "7:57 AM". Anything that isn't
- * a 12-hour time is left as it came. */
-export const shotClock = (time: string) => {
-  const match = /^(\d{1,2}:\d{2})\s*([ap])\.?m\.?$/i.exec(time.trim());
-  return match ? `${match[1]} ${match[2].toUpperCase()}M` : time;
-};
+/** A shot's time as the app prints it everywhere — the cover and a post's
+ * own photos alike — on the 24-hour clock: "07:57", whatever form it was
+ * stored in. */
+export const shotClock = (time: string) => clock24(time.trim());
 
 export interface DayCoverProps {
   /** The day's photos, in its grid's order. */
@@ -78,7 +100,7 @@ export interface DayCoverProps {
   day: number;
   /** The era's length — "/75" after the day. */
   totalDays?: number;
-  /** Over the day: the era's name. */
+  /** Under the day: the era's name. */
   kicker: string;
   /** The cover's height over its width — 1 for a square tile, 4/3 for an
    * upright one. */
@@ -179,46 +201,73 @@ export function DayCover({
               </View>
             )}
           />
-          <View style={styles.dim} />
-
-          <View style={styles.middle}>
-            <Svg width={SHADE_WIDTH} height={SHADE_HEIGHT} style={styles.shade}>
-              <Defs>
-                <RadialGradient id="coverShade" cx="50%" cy="50%" rx="50%" ry="50%">
-                  <Stop offset="0" stopColor={shade} stopOpacity={SHADE_OPACITY} />
-                  <Stop offset="1" stopColor={shade} stopOpacity={0} />
-                </RadialGradient>
-              </Defs>
-              <Ellipse
-                cx={SHADE_WIDTH / 2}
-                cy={SHADE_HEIGHT / 2}
-                rx={SHADE_WIDTH / 2}
-                ry={SHADE_HEIGHT / 2}
-                fill="url(#coverShade)"
-              />
-            </Svg>
-            <Text
-              variant="coverEra"
-              color={colors.onMedia}
-              numberOfLines={1}
-              style={[styles.shadow, styles.centred, styles.era]}
-            >
-              {kicker}
-            </Text>
-            <Text variant="coverDay" color={colors.onMedia} style={styles.shadow}>
-              {totalDays ? `Day ${day}/${totalDays}` : `Day ${day}`}
-            </Text>
-          </View>
-
-          {small ? null : (
-            <View style={styles.foot}>
-              <Text variant="coverMark" color={colors.onMedia} style={styles.mark}>
-                Selfera
+          {SHOW_DAY ? (
+            <View style={styles.middle}>
+              {SHOW_SHADE ? (
+                <Svg width={SHADE_WIDTH} height={SHADE_HEIGHT} style={styles.shade}>
+                  <Defs>
+                    <RadialGradient id="coverShade" cx="50%" cy="50%" rx="50%" ry="50%">
+                      <Stop offset="0" stopColor={shade} stopOpacity={SHADE_OPACITY} />
+                      <Stop offset="0.5" stopColor={shade} stopOpacity={SHADE_OPACITY * SHADE_HALFWAY} />
+                      <Stop offset="1" stopColor={shade} stopOpacity={0} />
+                    </RadialGradient>
+                  </Defs>
+                  <Ellipse
+                    cx={SHADE_WIDTH / 2}
+                    cy={SHADE_HEIGHT / 2}
+                    rx={SHADE_WIDTH / 2}
+                    ry={SHADE_HEIGHT / 2}
+                    fill="url(#coverShade)"
+                  />
+                </Svg>
+              ) : null}
+              <Text variant="coverDay" color={colors.onMedia} style={styles.letteringShadow}>
+                {totalDays ? `Day ${day}/${totalDays}` : `Day ${day}`}
               </Text>
+              {SHOW_ERA ? (
+                <Text
+                  variant="coverEra"
+                  color={colors.onMedia}
+                  numberOfLines={1}
+                  style={[styles.eraShadow, styles.centred, styles.era]}
+                >
+                  {kicker}
+                </Text>
+              ) : null}
             </View>
-          )}
+          ) : null}
+
+          {small ? null : <CoverMark />}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * "Selfera", faint, centred at the foot — the cover's own mark, laid over
+ * whatever box it's put in. `width` is that box's width: outside a cover
+ * (a post's photo slides) the mark is scaled from the cover's own layout
+ * width, so it lands at the size and inset the cover shows it at beside
+ * it. Inside a cover, already scaled whole, it's left unset.
+ */
+export function CoverMark({ width }: { width?: number }) {
+  const scale = width ? width / COVER_WIDTH : 1;
+  // Scaling the word alone grows it about its own middle, so its foot drops
+  // by half the growth — given back here, so it lands exactly where the
+  // cover, scaled whole, puts it.
+  const drop = (type.coverMark.lineHeight * (scale - 1)) / 2;
+  return (
+    <View pointerEvents="none" style={[styles.foot, { paddingBottom: MARK_INSET * scale + drop }]}>
+      <Text
+        variant="coverMark"
+        color={colors.onMedia}
+        style={[styles.mark, scale !== 1 && { transform: [{ scale }] }]}
+      >
+        {/* All lower case, as a wordmark rather than the app's name in a
+            sentence. */}
+        selfera
+      </Text>
     </View>
   );
 }
@@ -231,10 +280,6 @@ const styles = StyleSheet.create({
   inner: {
     position: 'absolute',
   },
-  dim: {
-    ...absoluteFill,
-    backgroundColor: colors.coverDim,
-  },
   // A photo's time in the middle of its piece, as the reference prints it.
   caption: {
     ...absoluteFill,
@@ -246,11 +291,23 @@ const styles = StyleSheet.create({
     textShadowColor: colors.onMediaShadow,
     textShadowRadius: CAPTION_SHADOW_RADIUS,
   },
+  letteringShadow: {
+    textShadowColor: colors.coverLetteringShadow,
+    textShadowOffset: LETTERING_SHADOW_OFFSET,
+    textShadowRadius: LETTERING_SHADOW_RADIUS,
+  },
+  // The slides' own faint drop, scaled into the cover's layout like the
+  // type it sits under.
+  eraShadow: {
+    textShadowColor: colors.shotStampShadow,
+    textShadowOffset: ERA_SHADOW_OFFSET,
+    textShadowRadius: ERA_SHADOW_RADIUS,
+  },
   centred: {
     textAlign: 'center',
   },
   era: {
-    marginBottom: -ERA_DROP,
+    marginTop: -ERA_DROP,
   },
   middle: {
     ...absoluteFill,
@@ -266,7 +323,6 @@ const styles = StyleSheet.create({
     ...absoluteFill,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: layout.stack,
   },
   mark: {
     opacity: MARK_OPACITY,

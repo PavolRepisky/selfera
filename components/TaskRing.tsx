@@ -51,6 +51,11 @@ const PROFILE_SEGMENT_GAP = 7 / 120;
 const SWEEP_SLICES = 90;
 const SWEEP_OVERLAP = 0.6;
 
+/** The outer size of a `profile` ring around a `face`-sized photo, its band
+ * `strokeScale` times My Profile's. */
+export const profileRingSize = (face: number, strokeScale = 1) =>
+  Math.round(face * (1 + 2 * (PROFILE_STROKE * strokeScale + PROFILE_GAP)));
+
 /** Blends two `#RRGGBB` colours, `t` of the way from `a` to `b`. */
 function mixHex(a: string, b: string, t: number): string {
   const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
@@ -91,6 +96,10 @@ export interface TaskRingProps {
    * the done segments, and the photo lifted on its hard shadow.
    */
   look?: 'story' | 'profile';
+  /** The `profile` look's band as a multiple of My Profile's — over 1 where
+   * the ring is drawn small and its true-to-scale band would read as a
+   * hairline. Use `profileRingSize` to size the ring around the same face. */
+  strokeScale?: number;
   onPress?: () => void;
   accessibilityLabel?: string;
   /** Drawn in the face's place, at its size — the Tasks shutter, whose ring
@@ -118,6 +127,7 @@ export function TaskRing({
   size,
   badge = true,
   look = 'story',
+  strokeScale = 1,
   onPress,
   accessibilityLabel,
   children,
@@ -130,9 +140,10 @@ export function TaskRing({
   const maskId = `ringDone${useId().replace(/[^A-Za-z0-9]/g, '')}`;
 
   if (look === 'profile') {
-    const face = size / (1 + 2 * (PROFILE_STROKE + PROFILE_GAP));
-    const stroke = face * PROFILE_STROKE;
-    const inset = face * (PROFILE_STROKE + PROFILE_GAP);
+    const band = PROFILE_STROKE * strokeScale;
+    const face = size / (1 + 2 * (band + PROFILE_GAP));
+    const stroke = face * band;
+    const inset = face * (band + PROFILE_GAP);
     const r = (size - stroke) / 2;
     const around = 2 * Math.PI * r;
     const count = Math.max(total, 1);

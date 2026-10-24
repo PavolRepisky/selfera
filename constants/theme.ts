@@ -69,6 +69,7 @@ const DARK = {
   scrimLight: 'rgba(0,0,0,0.5)',
   frostBackdrop: 'rgba(0,0,0,0.3)',
   slotEdge: '#636366',
+  inkAside: '#636366',
 } as const;
 
 const LIGHT = {
@@ -208,14 +209,26 @@ const LIGHT = {
    * script holds over a bright photo — drawn as a fading gradient, the
    * colour here at its centre. */
   coverShade: palette.black,
-  /** A light dim over a whole cover, so its photos sit back under the
-   * lettering and a bright one doesn't outshine the day. The same in light
-   * and dark, since it sits on photos. */
-  coverDim: 'rgba(0,0,0,0.15)',
+  /** The tight drop under a cover's day and era name — darker than the
+   * soft `onMediaShadow`, since it's drawn close in and has to hold white
+   * over a bright photo on its own. The same in light and dark. */
+  coverLetteringShadow: 'rgba(0,0,0,0.55)',
   /** The dashed edge of an open slot in Tasks' post — between `inkGhost`,
    * which vanishes on the slot's grey, and `inkMuted`, which reads as a
    * drawn box rather than a place a photo goes. */
   slotEdge: '#B5B4B1',
+  /** A count set beside a section heading — "3 of 6 friends" on Community.
+   * The same step between `inkGhost` and `inkMuted` as `slotEdge`: at the
+   * reading grey it competed with the heading, at the ghost grey it faded
+   * out. */
+  inkAside: '#B5B4B1',
+  /** The time and task across a posted photo's middle — white, as the
+   * cover's lettering before them is. The same in light and dark, since it
+   * sits on photos. */
+  shotStamp: palette.white,
+  /** The faint drop under that yellow — barely there, only enough to keep
+   * it from washing out on a bright shot. */
+  shotStampShadow: 'rgba(0,0,0,0.2)',
 } as const;
 
 type Role = keyof typeof LIGHT;
@@ -329,15 +342,20 @@ const QUICKSAND = {
    */
   coverDay: 'Allura_400Regular',
   /**
-   * Inclusive Sans — the rest of a day's cover: the era's name under the
-   * day, each photo's time, and "Selfera" at its foot — and the task and
-   * time on a post's own photos, to match. A plain,
-   * open sans that stays legible at the cover's very small sizes.
+   * Inter Tight — the rest of a day's cover but its wordmark: the era's
+   * name under the day and each photo's time — and the time and task on a
+   * post's own photo slides, so they match it. A plain, closely set sans
+   * that stays legible at the cover's very small sizes.
    */
-  cover: 'InclusiveSans_400Regular',
-  /** Inclusive Sans SemiBold — only "Selfera" at a cover's foot, so the mark
-   * holds its own over the photos while its opacity keeps it quiet. */
-  coverBold: 'InclusiveSans_600SemiBold',
+  cover: 'InterTight_400Regular',
+  /** Inter Tight Medium — the time and task on a post's photo slides. */
+  coverMedium: 'InterTight_500Medium',
+  /** Inter Tight SemiBold — the era's name under the day. */
+  coverBold: 'InterTight_600SemiBold',
+  /** Inclusive Sans Bold — only the "selfera" mark at a cover's foot and
+   * a post's photos', so the brand keeps a face of its own; Bold holds it
+   * over the photos while its opacity keeps it quiet. */
+  brandMark: 'InclusiveSans_700Bold',
 } as const;
 
 export const fonts = QUICKSAND;
@@ -562,14 +580,19 @@ export const type = {
     fontFamily: fonts.coverDay,
     fontSize: 22,
     lineHeight: 28,
-    letterSpacing: 0,
+    // Drawn in, so the script runs as one stroke.
+    letterSpacing: -0.75,
   },
-  /** The era's name over the day. */
+  /** The era's name under the day — set exactly as a post's photo slides
+   * set their time and task (`shotTitle`), so the cover and the slides
+   * after it read as one hand. The cover is laid out 280 wide and scaled
+   * to the phone, so each of `shotTitle`'s numbers is taken down by a
+   * 390pt phone's scale to land at the same size on screen. */
   coverEra: {
-    fontFamily: fonts.cover,
-    fontSize: 7.5,
-    lineHeight: 10,
-    letterSpacing: 0,
+    fontFamily: fonts.coverMedium,
+    fontSize: (14 * 280) / 390,
+    lineHeight: (19 * 280) / 390,
+    letterSpacing: (-0.4 * 280) / 390,
   },
   /** Each photo's time, very small, in the middle of every shot. The task
    * isn't on the cover — at this size it can't be read, and which task a
@@ -581,23 +604,37 @@ export const type = {
     lineHeight: 10,
     letterSpacing: 0,
   },
-  /** "Selfera" at the cover's foot — a maker's mark a step over the era
-   * name, held back by its opacity rather than by being smaller. */
+  /** "selfera" at the cover's foot — a maker's mark a step over the era
+   * name, held back by its opacity rather than by being smaller. On a
+   * cover scaled to a 390pt phone's width it shows at about 15. */
   coverMark: {
-    fontFamily: fonts.coverBold,
-    fontSize: 9,
-    lineHeight: 12,
-    letterSpacing: 0,
+    fontFamily: fonts.brandMark,
+    fontSize: 11,
+    lineHeight: 15,
+    // Drawn in, so the word sets as one wordmark rather than spelled out.
+    letterSpacing: -0.75,
   },
-  /** The task a post's own photo proves and the time it was shot, at its
-   * foot like a camera's date stamp — in the cover's face, so a slide and
-   * its cover read as one set. Both lines at one size: the task leads by
-   * coming first, not by being bigger. */
+  /** The task a photo in Tasks' post proves and the time it was shot, at
+   * its foot like a camera's date stamp — in Quicksand Bold, as the posted
+   * day's own slides set theirs; the cover's face stays the cover's. Both
+   * lines at one size: the task leads by coming first, not by being
+   * bigger. */
   shotCaption: {
-    fontFamily: fonts.cover,
+    ...face.bodyBold,
     fontSize: 13,
     lineHeight: 17,
-    letterSpacing: 0,
+    letterSpacing: bodyTracking,
+  },
+  /** The time over the task across a posted photo's middle — the cover's
+   * Inter Tight in its Medium, so a post's slides and its cover read as
+   * one set; small, both lines at one size, so it stays a caption over the
+   * shot rather than a headline across it. */
+  shotTitle: {
+    fontFamily: fonts.coverMedium,
+    fontSize: 14,
+    lineHeight: 19,
+    // Drawn in a touch, as a video's typed caption sets.
+    letterSpacing: -0.4,
   },
   tab: {
     ...face.bodyMedium,

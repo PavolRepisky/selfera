@@ -291,13 +291,18 @@ padding:
   no separate display face — Playfair was removed on purpose; don't add a
   serif back for headlines.
 - **Allura** — the "Day N/75" written across the middle of a `DayCover`
-  (`coverDay`). **Inclusive Sans** — the rest of that cover: the era name
-  over the day (`coverEra`), the faint "Selfera" at its foot (`coverMark`),
+  (`coverDay`). **Inter Tight** — the rest of that cover: the era name
+  under the day (`coverEra`), the faint lower-case "selfera" wordmark at its foot (`coverMark`, in
+  Inclusive Sans Bold, set close, drawn by `CoverMark`, which signs each of a
+  post's photo slides the same way),
   and — only on the saved story, where its switches turn them on — each
-  photo's time and task in its middle (`coverCaption`). Inclusive Sans also sets the task over the time
-  in the bottom-left of each of a post's own photos (both `shotCaption`,
-  on the `photoFoot` fade), so they match the cover. Times read
-  "7:57 AM" everywhere (`shotClock` in `DayCover`). Neither face
+  photo's time and task in its middle (`coverCaption`). Tasks' post sets the
+  task over the time in the bottom-left of each photo in Quicksand Bold
+  (both `shotCaption`, on the `photoFoot` fade). A posted day's own photo slides set the time over
+  the task in Inter Tight Medium (`shotTitle`), centred, in white
+  (`shotStamp`) on a faint drop. Times read
+  "07:57", on the 24-hour clock, everywhere (`clock24` in `lib/format`,
+  which also turns older "7:57am" stamps over). Neither face
   appears anywhere else.
 
 Quicksand runs optically light, so each role is mapped one step up the weight

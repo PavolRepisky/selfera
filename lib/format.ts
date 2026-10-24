@@ -50,13 +50,24 @@ export function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
-/** "7:19am" — the completion stamp on task rows. */
+/** "07:19" — the completion stamp on a task, on the 24-hour clock the
+ * whole app reads time in. */
 export function timeStamp(date: Date): string {
-  const hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const suffix = hours >= 12 ? 'pm' : 'am';
-  const display = hours % 12 === 0 ? 12 : hours % 12;
-  return `${display}:${minutes}${suffix}`;
+  return clockTime(date.getHours() * 60 + date.getMinutes());
+}
+
+/**
+ * Every 12-hour time in `text` — "7:19am", "9:40 PM", "7:57 a.m." — on the
+ * 24-hour clock, "07:19", "21:40", "07:57"; the rest of the text as it was.
+ * Stamps saved before the app went 24-hour still hold the old form, so
+ * every time shown passes through here rather than trusting how it was
+ * stored.
+ */
+export function clock24(text: string): string {
+  return text.replace(/(\d{1,2}):(\d{2})\s*([ap])\.?m\.?/gi, (_, h: string, m: string, half: string) => {
+    const hour = (Number(h) % 12) + (half.toLowerCase() === 'p' ? 12 : 0);
+    return clockTime(hour * 60 + Number(m));
+  });
 }
 
 /** Local calendar day as ISO `YYYY-MM-DD` — the form a round's start date is

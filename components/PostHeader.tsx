@@ -2,26 +2,25 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { colors, layout, radii, spacing, tapSlop } from '@/constants/theme';
 import { Avatar, type AvatarSource } from './Avatar';
-import { TaskRing } from './TaskRing';
+import { clock24 } from '@/lib/format';
+import { TaskRing, profileRingSize } from './TaskRing';
 import { Text } from './Text';
 
 /** The poster's face beside their name — the height of a reaction pill, so
  * the header and the action row under a post sit on one scale. */
 const POST_AVATAR = 32;
+/** The ring's band against My Profile's: true to scale it came out a
+ * hairline round a face this small, so it's drawn half as heavy again. */
+const POST_RING_STROKE = 1.5;
 /** That face in My Profile's ring: the photo stays at `POST_AVATAR`, and the
- * band and its gap go around it in the profile's own proportions (6 and 5 on
- * a 120 face). */
-const POST_RING = Math.round(POST_AVATAR * (1 + (2 * (6 + 5)) / 120));
+ * band and its gap go around it in the profile's proportions. */
+const POST_RING = profileRingSize(POST_AVATAR, POST_RING_STROKE);
 /** The face with no ring round it — a touch over `POST_AVATAR`, since the
  * ring's band is what gave the ringed face its weight. */
 const POST_AVATAR_BARE = 36;
 /** The drawn dot between the day and the challenge. */
 const SUBTITLE_DOT = 3;
 
-/** "9:40pm" as "9:40 PM" — a space before the half of the day, in capitals,
- * however the time was stored. */
-const displayTime = (time: string) =>
-  time.trim().replace(/\s*([ap])\.?m\.?$/i, (_, half: string) => ` ${half.toUpperCase()}M`);
 
 export interface PostHeaderProps {
   avatar: AvatarSource;
@@ -74,7 +73,7 @@ export function PostHeader({
 
   const challengeLink = (
     <Text
-      variant="meta"
+      variant="metaBold"
       color={soft}
       numberOfLines={1}
       accessibilityRole={onPressChallenge ? 'button' : undefined}
@@ -88,7 +87,7 @@ export function PostHeader({
     </Text>
   );
   const dayLabel = (
-    <Text variant="meta" color={soft}>
+    <Text variant="metaBold" color={soft}>
       Day {day}
     </Text>
   );
@@ -113,13 +112,14 @@ export function PostHeader({
             size={POST_RING}
             badge={false}
             look="profile"
+            strokeScale={POST_RING_STROKE}
           />
         ) : (
           <Avatar source={avatar} size={POST_AVATAR_BARE} />
         )}
       </Pressable>
 
-      <View style={[styles.text, !ring && styles.textBare]}>
+      <View style={styles.text}>
         <View style={styles.line}>
           <Text
             variant="itemTitle"
@@ -133,8 +133,8 @@ export function PostHeader({
             {name}
           </Text>
           {time ? (
-            <Text variant="meta" color={soft}>
-              {displayTime(time)}
+            <Text variant="metaBold" color={soft}>
+              {clock24(time.trim())}
             </Text>
           ) : null}
         </View>
@@ -156,13 +156,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  // A stack's gap rather than the row's usual inline one: the ring already
+  // stands off the photo, so the name sits close and reads as the face's.
   text: {
     flex: 1,
-    marginLeft: layout.inline,
-  },
-  // A bare face has no ring's gap of its own to stand off by, so the name
-  // sits closer to it.
-  textBare: {
     marginLeft: layout.stack,
   },
   // A bare step rather than a `layout` role: the air either side of the

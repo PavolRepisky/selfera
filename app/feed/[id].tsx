@@ -37,7 +37,7 @@ import { LIVES_PER_CHALLENGE, useApp } from '@/hooks/useAppState';
 import { useChallengeListing, useRoundResults } from '@/hooks/useChallengeCards';
 import { useSession } from '@/hooks/useSession';
 import { useSocial } from '@/hooks/useSocial';
-import { addDays, longDate, ordinal, shortDate } from '@/lib/format';
+import { addDays, clock24, longDate, ordinal, shortDate } from '@/lib/format';
 import { localDay, roundState } from '@/lib/round';
 
 /** The photos across the top: one tall beside two stacked, edge to edge and
@@ -249,7 +249,7 @@ function ChallengePage({
                 <Text variant="copyBold">{task.label}</Text>
                 {entry?.done ? (
                   <Text variant="meta" color={colors.inkMuted}>
-                    {entry.time ? `Done at ${entry.time}` : 'Done'}
+                    {entry.time ? `Done at ${clock24(entry.time)}` : 'Done'}
                   </Text>
                 ) : task.note ? (
                   <Text variant="meta" color={colors.inkMuted}>
