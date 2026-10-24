@@ -5,6 +5,7 @@ import { DaysFeed } from '@/components/DaysFeed';
 import { FriendCard } from '@/components/FriendCard';
 import { useSocial } from '@/hooks/useSocial';
 import { pastRunAuthor, pastRunPosted } from '@/lib/profileDays';
+import { isPosted } from '@/lib/round';
 
 /**
  * One of a friend's or member's eras as a feed, opened from their profile —
@@ -39,7 +40,8 @@ export default function FriendPostScreen() {
       .filter(
         ({ day, tasks }) =>
           tasks.some((task) => task.photo || task.photoSeed) &&
-          (day < friend.day || tasks.filter((task) => task.done).length === taskCount),
+          (day < friend.day ||
+            (tasks.filter((task) => task.done).length === taskCount && isPosted(friend.postsAt))),
       )
       .sort((a, b) => b.day - a.day);
   }, [friend, page, past]);

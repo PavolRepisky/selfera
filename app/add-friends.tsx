@@ -29,6 +29,10 @@ function mutualLabel(faces: readonly Friend[], count: number) {
   return more > 0 ? `${names} + ${more} more` : names;
 }
 
+/** A heading's link, as Community's See all has it: the system blue on the
+ * iPhone, where links are tinted; the reading grey on the drawn design. */
+const LINK = NATIVE_HEADER ? colors.systemAccent : colors.inkMuted;
+
 /** A suggestion's face — a step over a post's, since the row is the person. */
 const ROW_AVATAR = 52;
 /** The mutual friends' faces under a suggestion's handle: small enough to
@@ -342,7 +346,7 @@ export default function AddFriendsScreen() {
                       onPress={() => setShowAll(true)}
                       style={({ pressed }) => pressed && styles.pressed}
                     >
-                      <Text variant="metaBold" color={colors.inkMuted}>
+                      <Text variant="metaBold" color={LINK}>
                         See all
                       </Text>
                     </Pressable>

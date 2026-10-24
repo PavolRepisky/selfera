@@ -43,6 +43,10 @@ const BURST_STAGGER = 70;
 const BURST_SPREAD = 140;
 /** Each rising heart — the size the emoji it replaced drew at. */
 const BURST_HEART = 44;
+/** A story's progress bars: a hairline track, cut apart by a sliver —
+ * Instagram's own, which read as one strip at anything less. */
+const BAR_HEIGHT = 3;
+const BAR_GAP = 4;
 
 
 /**
@@ -308,8 +312,9 @@ export default function StoryScreen() {
     if (person) router.replace({ pathname: '/friend/[id]', params: { id: person.id } });
     else router.dismissTo('/(tabs)/profile');
   };
+  // A friend's era, which needn't be yours.
   const openChallenge = () =>
-    router.replace({ pathname: '/feed/[id]', params: { id: challenge.id } });
+    router.replace({ pathname: '/feed/[id]', params: { id: person?.challengeId ?? challenge.id } });
 
   return (
     <View style={styles.root}>
@@ -450,7 +455,7 @@ export default function StoryScreen() {
           tone="floating"
           overMedia
           icon="lock-closed"
-          label="Unlocks when you post"
+          label="Complete a task to unlock"
           bold
           visible={locked}
           onPress={() => router.dismissTo('/(tabs)/tasks')}
@@ -544,11 +549,11 @@ const styles = StyleSheet.create({
   },
   bars: {
     flexDirection: 'row',
-    gap: 4,
+    gap: BAR_GAP,
   },
   bar: {
     flex: 1,
-    height: 3,
+    height: BAR_HEIGHT,
     borderRadius: radii.pill,
     backgroundColor: colors.onMediaTrack,
   },

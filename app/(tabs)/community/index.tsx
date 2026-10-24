@@ -114,6 +114,7 @@ export default function CommunityScreen() {
     members,
     roundSize,
     loaded,
+    failed,
     relations,
     refreshToday,
     toggleRequest: toggleAdded,
@@ -290,6 +291,23 @@ export default function CommunityScreen() {
   const lockGoing = `${lockCount.toLocaleString('en-US')} friend${lockCount === 1 ? '' : 's'} still going`;
   const lockHint = "Finish any of today's tasks to see how your friends are doing.";
 
+  // The last load never reached the server and there's nothing from an
+  // earlier one to show: say so, rather than an empty tab claiming there's
+  // nobody. With people already on screen, a failed refresh leaves them be.
+  const loadFailed = loaded && failed && !friends.length && !members.length;
+  const failedState = (
+    <EmptyState
+      icon="cloud-offline-outline"
+      title="Couldn't load Community"
+      hint="Check your connection and try again."
+      action={{ label: 'Try again', onPress: refreshToday }}
+    />
+  );
+  // Friends who aren't on a running era today have no day to show — the tab
+  // lists only those who do — so having friends at all changes what an empty
+  // tab says.
+  const hasFriends = relations.friends.size > 0;
+
   const renderPost = (person: Friend, accessory?: React.ReactNode) => (
     <View key={person.id} onLayout={(e) => onPostLayout(person.id)(e.nativeEvent.layout.y)}>
       <FriendCard
@@ -389,7 +407,7 @@ export default function CommunityScreen() {
             {!locked && (friendsGoing.length > 0 || (myDayRunning && !myFinished)) ? (
               <View style={styles.section}>
                 <SectionHeading
-                  title="Still going"
+                  title="Still going today"
                   meta={friends.length ? `${friendsGoing.length} of ${friendsOf}` : undefined}
                 />
                 <ScrollView
@@ -443,19 +461,30 @@ export default function CommunityScreen() {
               meta={friends.length ? `${friendsFinished.length} of ${friendsOf}` : undefined}
             />
 
-            {loaded && !friends.length ? (
+            {loadFailed ? (
+              failedState
+            ) : loaded && !friends.length ? (
               <>
                 {myPost ? (
                   <View style={styles.posts}>
                     <FriendCard friend={myPost} locked={false} />
                   </View>
                 ) : null}
-                <EmptyState
-                  icon="people-outline"
-                  title="No friends here yet"
-                  hint="Add people and their days show up here as they go."
-                  action={{ label: 'Find friends', onPress: () => router.push('/add-friends') }}
-                />
+                {hasFriends ? (
+                  <EmptyState
+                    icon="people-outline"
+                    title="No friends on an era today"
+                    hint="Your friends' days show up here once they're in an era."
+                    action={{ label: 'Find friends', onPress: () => router.push('/add-friends') }}
+                  />
+                ) : (
+                  <EmptyState
+                    icon="people-outline"
+                    title="No friends here yet"
+                    hint="Add people and their days show up here as they go."
+                    action={{ label: 'Find friends', onPress: () => router.push('/add-friends') }}
+                  />
+                )}
               </>
             ) : myPost || friendsFinished.length ? (
               <View
@@ -479,16 +508,20 @@ export default function CommunityScreen() {
                     <Text variant="itemTitle" center>
                       No one has finished today yet
                     </Text>
-                    <Text variant="meta" color={colors.inkMuted} center>
-                      {`Finish all ${tasks.length} and your day lands here first.`}
-                    </Text>
+                    {/* Only with a day of your own running to finish —
+                        outside an era, or before its Day 1, there's none. */}
+                    {myDayRunning ? (
+                      <Text variant="meta" color={colors.inkMuted} center>
+                        {`Finish all ${tasks.length} and your day lands here first.`}
+                      </Text>
+                    ) : null}
                   </View>
                   <View style={styles.progressRows}>
                     {progressRows.map((row) => (
                       <ProgressRow key={row.id} {...row} />
                     ))}
                   </View>
-                  {locked ? null : (
+                  {locked || !myDayRunning ? null : (
                     <PrimaryButton
                       label="Shoot your next task"
                       icon="camera-outline"
@@ -540,7 +573,7 @@ export default function CommunityScreen() {
             <SectionHeading
               title="Finished today"
               meta={
-                inChallenge
+                inChallenge && !loadFailed
                   ? `${(membersFinished.length + (myPost ? 1 : 0)).toLocaleString('en-US')} of ${roundOf}`
                   : undefined
               }
@@ -553,6 +586,8 @@ export default function CommunityScreen() {
                 hint="Members are the people doing your era with you."
                 action={{ label: 'Find an era', onPress: () => router.navigate('/discover') }}
               />
+            ) : loadFailed ? (
+              failedState
             ) : loaded && !members.length ? (
               <>
                 {myPost ? (

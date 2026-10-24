@@ -1,6 +1,6 @@
 import type { CommentEntry } from '@/components/CommentsSheet';
 import type { Friend } from '@/data/content';
-import { orderBySlot } from '@/hooks/useAppState';
+import { orderBySlot } from '@/lib/slots';
 import type { Database } from '@/lib/database.types';
 import { publicUrl, signedUrls } from '@/lib/backend/photos';
 import { supabase } from '@/lib/supabase';
@@ -348,10 +348,13 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   const round = m.round;
   const challenge = round.challenge!;
   const tasks = [...(challenge.tasks ?? [])].sort((a, b) => a.position - b.position);
-  const [progress, completions, captions] = await Promise.all([
+  const [progress, completions, captions, posts] = await Promise.all([
     supabase.from('membership_progress').select('current_day, lives, lives_left').eq('membership_id', m.id).single(),
     supabase.from('task_completions').select('*').eq('membership_id', m.id),
     supabase.from('day_captions').select('*').eq('membership_id', m.id),
+    // When each finished day goes up, so today waits out its countdown here
+    // as it does on Community.
+    supabase.from('day_posts').select('day, posts_at').eq('membership_id', m.id),
   ]);
   const all = must(completions);
   const urls = await signedUrls(all.flatMap((c) => [c.photo_path, c.thumb_path]));
@@ -377,6 +380,8 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   person.challengeName = challenge.name;
   person.tasks = days.find((d) => d.day === today)?.tasks ?? [];
   person.caption = captionOf.get(today);
+  const goesUp = must(posts).find((post) => post.day === today)?.posts_at;
+  person.postsAt = goesUp ? Date.parse(goesUp) : undefined;
 
   return {
     person,

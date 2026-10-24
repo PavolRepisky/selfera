@@ -10,6 +10,7 @@ import { useSession } from '@/hooks/useSession';
 import { useRelation, useSocial } from '@/hooks/useSocial';
 import { possessive } from '@/lib/names';
 import { profileDays, profileRun } from '@/lib/profileDays';
+import { isPosted } from '@/lib/round';
 
 /**
  * A friend's or a challenge member's profile, opened from the Community tab,
@@ -50,8 +51,14 @@ export default function FriendProfileScreen() {
   const today = friend?.day ?? 0;
   const hasStoryToday = Boolean(days.get(today)?.shots.length);
 
+  // Today only once it's gone up — every task done and its countdown run
+  // out, as Community has it.
   const posted = [...days.entries()]
-    .filter(([day, record]) => record.shots.length > 0 && (day < today || record.done === taskCount))
+    .filter(
+      ([day, record]) =>
+        record.shots.length > 0 &&
+        (day < today || (record.done === taskCount && isPosted(friend?.postsAt))),
+    )
     .map(([day]) => day)
     .sort((a, b) => b - a);
 

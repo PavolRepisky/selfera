@@ -192,8 +192,10 @@ export function FriendCard({
   // Only the tasks they've actually shot — a post is the photos themselves,
   // the way the post-detail screen's own grid is, not a checklist with gaps
   // standing in for what's left.
+  // Locked, the server signs none of today's photos, so a done task stands
+  // in by itself — there's still a post under the lock, just not its shots.
   const cells: CollageCell[] = postTasks
-    .filter((task) => task.photo || task.photoSeed)
+    .filter((task) => task.photo || task.photoSeed || (locked && task.done))
     .map((task) => ({
       key: task.label,
       photo: task.photo,
@@ -292,6 +294,7 @@ export function FriendCard({
       const shots = item.rows.filter((row) => row.photo);
       return (
         <View style={slideSize}>
+          {shots.length ? null : <Placeholder seed={item.rows[0]?.seed} radius={0} style={slideSize} />}
           {shots.map((row, i) => (
             <Image
               key={row.key}
@@ -382,7 +385,7 @@ export function FriendCard({
           <LockedOverlay
             locked={!!locked}
             radius={0}
-            title="Unlocks when you post"
+            title="Complete a task to unlock"
             onPress={() => router.push('/(tabs)/tasks')}
           >
             <View
@@ -447,7 +450,8 @@ export function FriendCard({
       {/* Instagram's own multi-photo tell: small dots on a line of their own
           under the photo, above the heart and the comments, rather than
           laid over the picture. */}
-      {slides.length > 1 ? (
+      {/* Not under a lock, where the carousel can't be swiped. */}
+      {slides.length > 1 && !locked ? (
         <View style={styles.dots}>
           {slides.map((slide, i) => (
             <View key={slide.key} style={[styles.dot, i === activeIndex && styles.dotActive]} />
@@ -458,7 +462,7 @@ export function FriendCard({
       {/* The heart, then the comments beside it — bare glyphs with their
           counts, no pill round them. The heart fills red once you've left
           yours; a tap leaves it, another takes it back. */}
-      <View style={[styles.actions, slides.length > 1 && styles.actionsUnderDots]}>
+      <View style={[styles.actions, slides.length > 1 && !locked && styles.actionsUnderDots]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Like, ${hearts}`}
@@ -525,7 +529,8 @@ export function FriendCard({
         composerAvatar={profile.avatar ?? profile.avatarSeed}
         // Named in the field's hint on someone else's post; your own needs no
         // "for".
-        recipient={friend.name === profile.name ? undefined : friend.name}
+        // By handle: your own post on Community is named "You".
+        recipient={friend.handle === profile.handle ? undefined : friend.name}
       />
     </View>
   );

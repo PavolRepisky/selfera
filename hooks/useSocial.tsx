@@ -280,22 +280,6 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const toggleRequest = useCallback(
-    (id: string) => {
-      const sent = relationsRef.current.outgoing.has(id);
-      changeRelation(
-        (r) => {
-          const outgoing = new Set(r.outgoing);
-          if (sent) outgoing.delete(id);
-          else outgoing.add(id);
-          return { ...r, outgoing };
-        },
-        () => (sent ? social.unfriend(id) : social.requestFriend(id)),
-      );
-    },
-    [changeRelation],
-  );
-
   const accept = useCallback(
     (id: string) =>
       changeRelation(
@@ -308,6 +292,29 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         () => social.requestFriend(id),
       ),
     [changeRelation],
+  );
+
+  const toggleRequest = useCallback(
+    (id: string) => {
+      // Adding someone who has already asked you is accepting them — the
+      // server makes you friends at once, so the screen shouldn't say
+      // "Request sent".
+      if (relationsRef.current.incoming.some((p) => p.id === id)) {
+        accept(id);
+        return;
+      }
+      const sent = relationsRef.current.outgoing.has(id);
+      changeRelation(
+        (r) => {
+          const outgoing = new Set(r.outgoing);
+          if (sent) outgoing.delete(id);
+          else outgoing.add(id);
+          return { ...r, outgoing };
+        },
+        () => (sent ? social.unfriend(id) : social.requestFriend(id)),
+      );
+    },
+    [changeRelation, accept],
   );
 
   const decline = useCallback(
