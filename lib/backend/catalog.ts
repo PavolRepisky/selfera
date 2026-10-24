@@ -4,10 +4,10 @@ import { challengeStrip, type DiscoverSection, type StreakGroup } from '@/data/c
 import type { Database } from '@/lib/database.types';
 import { publicUrl } from '@/lib/backend/photos';
 import { supabase } from '@/lib/supabase';
-import { localDay, roundState } from '@/lib/round';
+import { joinOpen, localDay, roundState } from '@/lib/round';
 
 /**
- * Every challenge there is, as the Challenges tab, search, the topic pages
+ * Every challenge there is, as Discover, search, the topic pages
  * and a challenge's own page show it — read from the server, so a new round
  * shows up without the app changing.
  *
@@ -60,7 +60,7 @@ function pick(rounds: readonly RoundWithChallenge[], mine: string | null): Round
   const state = (r: RoundWithChallenge) => roundState(localDay(r.start_date), r.days).kind;
   const byStart = [...rounds].sort((a, b) => a.start_date.localeCompare(b.start_date));
   return (
-    byStart.find((r) => state(r) === 'upcoming') ??
+    byStart.find((r) => joinOpen(localDay(r.start_date))) ??
     [...byStart].reverse().find((r) => state(r) === 'running') ??
     byStart[byStart.length - 1]
   );

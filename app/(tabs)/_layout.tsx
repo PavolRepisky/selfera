@@ -28,10 +28,10 @@ const TAB_LABELS = {
  * Headless tabs so the bar can be a floating pill drawn over the content
  * rather than a docked bar that shortens it.
  *
- * Bar order is Challenges · Community · Tasks · Profile: the two social pages
+ * Bar order is Discover · Community · Tasks · Profile: the two social pages
  * lead, then the day itself, then your own page. The month grid of proof
  * photos used to be a Calendar tab of its own; it lives in Profile now, as
- * the Days section's Month view. Challenges and Community were one screen
+ * the Days section's Month view. Discover and Community were one screen
  * behind a switch until they earned a tab each. Tasks is the app's real home, so it is the initial
  * route; every tab, Tasks included, is drawn the same — a glyph with its
  * label under it.

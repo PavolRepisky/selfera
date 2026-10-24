@@ -11,7 +11,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { colors, colorsFor, layout, type } from '@/constants/theme';
+import { colors, colorsFor, layout, radii, type } from '@/constants/theme';
 import {
   IconButton,
   InHeaderBar,
@@ -82,9 +82,20 @@ function barItem(action: HeaderAction) {
     icon,
     variant: action.prominent ? ('done' as const) : undefined,
     disabled: action.disabled,
+    // The system's own badge on the bar button (iOS 26 and up; before it,
+    // the button goes without).
+    badge: action.badge ? { value: badgeText(action.badge) } : undefined,
     onPress: action.onPress!,
   };
 }
+
+/** A badge's count, capped so it stays a small mark on the button. */
+const BADGE_CAP = 9;
+const badgeText = (n: number) => (n > BADGE_CAP ? `${BADGE_CAP}+` : String(n));
+
+/** The drawn badge: a small ink disc riding the corner button's top edge,
+ * wide enough for "9+". */
+const BADGE_SIZE = 18;
 
 /** Whether this iPhone draws liquid glass (iOS 26 and up), whose bars
  * blur what scrolls under them by themselves. */
@@ -114,6 +125,9 @@ export type HeaderAction = {
   prominent?: boolean;
   /** Greyed and untappable — a form's Next until its step is filled in. */
   disabled?: boolean;
+  /** A count of things waiting behind the button — Activity's new ones.
+   * Nothing is shown at 0. */
+  badge?: number;
 } & ({ onPress: () => void; menu?: never } | { menu: readonly MenuAction[]; onPress?: never });
 
 export interface ScreenHeaderProps {
@@ -268,15 +282,25 @@ export function ScreenHeader({
           <View style={styles.actions}>
             {(actions ?? []).map((action) =>
               action.onPress ? (
-                <IconButton
-                  key={action.label}
-                  name={action.icon ?? 'checkmark'}
-                  size={cornerButtonSize}
-                  iconSize={cornerIconSize}
-                  background={colors.surface}
-                  onPress={action.onPress}
-                  accessibilityLabel={action.label}
-                />
+                <View key={action.label}>
+                  <IconButton
+                    name={action.icon ?? 'checkmark'}
+                    size={cornerButtonSize}
+                    iconSize={cornerIconSize}
+                    background={colors.surface}
+                    onPress={action.onPress}
+                    accessibilityLabel={
+                      action.badge ? `${action.label}, ${action.badge} new` : action.label
+                    }
+                  />
+                  {action.badge ? (
+                    <View style={styles.badge} pointerEvents="none">
+                      <Text variant="badge" color={colors.inkInverse}>
+                        {badgeText(action.badge)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               ) : null,
             )}
             {right}
@@ -313,6 +337,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.stack,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    minWidth: BADGE_SIZE,
+    height: BADGE_SIZE,
+    paddingHorizontal: layout.line,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.ink,
   },
 });
 

@@ -12,15 +12,10 @@ import { colors, radii, spacing } from '@/constants/theme';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { Text } from './Text';
 
-/**
- * The dashed rule around an empty slot: its weight, and how far outside the
- * tile it sits. Laid around the tile rather than bordered onto it, because a
- * border is drawn inside the box — it cuts its own weight out of the fill, so
- * the dashes read as a groove in the tile rather than a line drawn about it,
- * and a photo dropped in afterwards comes out that much smaller than the gap
- * it was standing in.
- */
-const RULE = 1.75;
+/** The white disc holding an inviting slot's `+` — big enough to read as
+ * the thing to tap, small enough to leave the tile a tile. */
+const ADD_DISC = 44;
+const ADD_GLYPH = 24;
 
 export interface PhotoSlotProps {
   /** The photo; left empty, the slot is a `+` asking for one. */
@@ -31,8 +26,8 @@ export interface PhotoSlotProps {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   /**
-   * Turns the empty tile from a flat grey block into an invitation: a dashed
-   * field outline with this caption under the glyph.
+   * Turns the empty tile from a flat grey block into an invitation: the `+`
+   * on a white disc, with this caption under it.
    */
   emptyLabel?: string;
   /** Degrees off straight. A shade of tilt reads as a photo laid on the page
@@ -66,14 +61,17 @@ export function PhotoSlot({
   ) : (
     <View style={[styles.empty, box, emptyLabel ? styles.emptyPadded : null]}>
       {emptyLabel ? (
-        <View pointerEvents="none" style={[styles.rule, { borderRadius: radius + RULE }]} />
-      ) : null}
-      <Ionicons name="add" size={28} color={emptyLabel ? colors.inkMuted : colors.field} />
-      {emptyLabel ? (
-        <Text variant="micro" color={colors.inkMuted} center style={styles.emptyLabel}>
-          {emptyLabel}
-        </Text>
-      ) : null}
+        <>
+          <View style={styles.addDisc}>
+            <Ionicons name="add" size={ADD_GLYPH} color={colors.ink} />
+          </View>
+          <Text variant="meta" color={colors.inkMuted} center style={styles.emptyLabel}>
+            {emptyLabel}
+          </Text>
+        </>
+      ) : (
+        <Ionicons name="add" size={28} color={colors.field} />
+      )}
     </View>
   );
 
@@ -103,29 +101,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   /**
-   * The dash is what separates "nothing here yet" from "nothing goes here": a
-   * solid tile of the same grey reads as a disabled thumbnail. Broken rather
-   * than dotted so each stroke is long enough to read as a rule at a glance —
-   * the segments are cut in proportion to the weight, so the extra
-   * quarter-point over a hairline buys the longer stroke as well as the firmer
-   * line. Any more and the gaps start shouting over the photographs.
+   * The white disc and its ink `+` are what separate "nothing here yet" from
+   * "nothing goes here": a bare tile of the grey reads as a disabled
+   * thumbnail. A dashed outline did this job once and was dropped — it
+   * shouted over the photos beside it.
    */
-  rule: {
-    position: 'absolute',
-    top: -RULE,
-    left: -RULE,
-    right: -RULE,
-    bottom: -RULE,
-    borderWidth: RULE,
-    borderStyle: 'dashed',
-    borderColor: colors.field,
+  addDisc: {
+    width: ADD_DISC,
+    height: ADD_DISC,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
-  /** Air around the glyph, or the rule crops the caption. */
+  /** Air either side, so a long caption wraps short of the tile's edge. */
   emptyPadded: {
     paddingHorizontal: spacing.sm,
   },
   emptyLabel: {
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   pressed: {
     opacity: 0.85,

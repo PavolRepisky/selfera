@@ -218,7 +218,7 @@ export async function setCaption(membershipId: string, day: number, caption: str
 // ---------------------------------------------------------------------------
 
 /** Every round, with its challenge, tasks and headline numbers — the
- * Challenges tab sorts these into "You're in", Starting soon and the rest. */
+ * Discover sorts these into featured and trending; search into starting soon, under way and finished. */
 export async function fetchRounds() {
   const [rounds, stats] = await Promise.all([
     supabase.from('rounds').select('*, challenge:challenges(*, tasks:challenge_tasks(*))').order('start_date'),

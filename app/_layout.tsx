@@ -131,6 +131,7 @@ function RootStack() {
             name="story"
             options={{ animation: 'fade', presentation: 'fullScreenModal' }}
           />
+          <Stack.Screen name="activity" />
           <Stack.Screen name="add-friends" />
           {/* Someone else's profile and days are ordinary pages, pushed
               the way your own Profile's are. As a modal, everything opened

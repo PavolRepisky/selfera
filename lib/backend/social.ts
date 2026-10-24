@@ -624,3 +624,105 @@ export async function requestFriend(userId: string) {
 export async function unfriend(userId: string) {
   must(await supabase.rpc('unfriend', { target: userId }));
 }
+
+// ---------------------------------------------------------------------------
+// Activity
+// ---------------------------------------------------------------------------
+
+/** How much of the activity list is read at once — a few weeks of it for
+ * most people, and older things have long stopped needing an answer. */
+const ACTIVITY_LIMIT = 60;
+
+/** Something someone did that concerns you, as the Activity page lists it.
+ * A friend request isn't one of these: it waits under Requests until it's
+ * answered, and answering it clears its row on the server. */
+export interface ActivityItem {
+  id: string;
+  kind: 'friend_accepted' | 'comment' | 'reply' | 'reaction' | 'invite';
+  actor: Person;
+  at: Date;
+  /** Not yet seen on the Activity page. */
+  unread: boolean;
+  /** The post it's about — yours, for a comment or a heart; whoever's
+   * thread it was, for a reply. */
+  membershipId?: string;
+  day?: number;
+  /** Whose post that is. */
+  ownerId?: string;
+  /** What a comment or reply said. */
+  text?: string;
+  /** The round an invite is into, and its era's name. */
+  roundId?: string;
+  eraName?: string;
+}
+
+export async function fetchActivity(): Promise<ActivityItem[]> {
+  const rows = must(
+    await supabase
+      .from('notifications')
+      .select('*')
+      .neq('kind', 'friend_request')
+      .order('created_at', { ascending: false })
+      .limit(ACTIVITY_LIMIT),
+  );
+  const commentIds = rows.flatMap((r) => r.comment_id ?? []);
+  const roundIds = rows.flatMap((r) => r.round_id ?? []);
+  const membershipIds = [...new Set(rows.flatMap((r) => r.membership_id ?? []))];
+  const [actors, comments, rounds, memberships] = await Promise.all([
+    fetchProfiles([...new Set(rows.map((r) => r.actor_id))]),
+    commentIds.length
+      ? must(await supabase.from('comments').select('id, body').in('id', commentIds))
+      : [],
+    roundIds.length
+      ? must(await supabase.from('rounds').select('id, challenge:challenges(name)').in('id', roundIds))
+      : [],
+    membershipIds.length
+      ? must(await supabase.from('memberships').select('id, user_id').in('id', membershipIds))
+      : [],
+  ]);
+  const ownerOf = new Map(memberships.map((m) => [m.id, m.user_id]));
+  const actorOf = new Map(actors.map((p) => [p.id, p]));
+  const bodyOf = new Map(comments.map((c) => [c.id, c.body]));
+  const eraOf = new Map(rounds.map((r) => [r.id, r.challenge?.name]));
+
+  return rows.flatMap((r): ActivityItem[] => {
+    const actor = actorOf.get(r.actor_id);
+    if (!actor || r.kind === 'friend_request') return [];
+    return [{
+      id: r.id,
+      kind: r.kind,
+      actor,
+      at: new Date(r.created_at),
+      unread: r.read_at == null,
+      membershipId: r.membership_id ?? undefined,
+      day: r.day ?? undefined,
+      ownerId: r.membership_id ? ownerOf.get(r.membership_id) : undefined,
+      text: r.comment_id ? bodyOf.get(r.comment_id) : undefined,
+      roundId: r.round_id ?? undefined,
+      eraName: r.round_id ? eraOf.get(r.round_id) ?? undefined : undefined,
+    }];
+  });
+}
+
+/** How many things on the Activity page you haven't seen — friend requests
+ * are counted from your relations instead, since they stay until answered. */
+export async function fetchUnreadActivity(): Promise<number> {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .neq('kind', 'friend_request')
+    .is('read_at', null);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/** Everything on the Activity page counts as seen once it's been opened. */
+export async function markActivityRead() {
+  must(
+    await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .is('read_at', null)
+      .neq('kind', 'friend_request'),
+  );
+}

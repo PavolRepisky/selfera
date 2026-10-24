@@ -7,7 +7,7 @@
  * the next task on the list.
  *
  * Kept out of `useAppState` so the backend can order a day without importing
- * the hook — that import ran in a circle through `demoEra`.
+ * the hook, which would import it in a circle.
  */
 export function orderBySlot<T extends { id: string }>(
   tasks: readonly T[],

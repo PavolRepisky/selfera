@@ -33,7 +33,6 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -87,7 +86,7 @@ import { addDays, longDate } from '@/lib/format';
 import { DAY_MS, localDay, roundState, startOfToday } from '@/lib/round';
 
 /** The photos that stand for a challenge everywhere else — its strip on
- * Challenges and on its preview are drawn from these. Three fill the cover
+ * Discover and on its preview are drawn from these. Three fill the cover
  * mosaic exactly: one large, two stacked beside it. */
 const PHOTO_COUNT = 3;
 
@@ -109,6 +108,13 @@ const DASH_RULE = 2;
  * chore to photograph — and as many as the day's mosaic has a layout for. */
 const MAX_TASKS = 9;
 
+/** The name's cap: short enough to sit on one line under the day on a
+ * cover, well inside the server's 60. The description's leaves room for a
+ * few sentences without the era page turning into an essay; the server
+ * takes 500. Both fields stop there and count, as Edit profile's do. */
+const NAME_MAX = 40;
+const DESCRIPTION_MAX = 300;
+
 /** How many of the topic's popular tasks are offered under the list. */
 const SUGGESTION_COUNT = 3;
 
@@ -119,7 +125,9 @@ const DEFAULT_DAYS = 75;
  * short enough that the wheel stays a quick flick. */
 const START_WINDOW_DAYS = 90;
 
-/** How long a new challenge stays open to join before Day 1, at the least. */
+/** How long the default start leaves a new challenge open to join before
+ * Day 1. Only the default: today can be picked too, since joining stays open
+ * through Day 1 itself. */
 const JOIN_WINDOW_DAYS = 7;
 
 const MONDAY = 1;
@@ -233,7 +241,7 @@ export default function CreateChallengeScreen() {
   const [focusedTask, setFocusedTask] = useState<string | null>(null);
   const [startOffset, setStartOffset] = useState(() =>
     editing?.startDate
-      ? Math.max(1, offsetTo(today, localDay(editing.startDate)))
+      ? Math.max(0, offsetTo(today, localDay(editing.startDate)))
       : defaultStartOffset(today),
   );
   const [pendingOffset, setPendingOffset] = useState(startOffset);
@@ -262,10 +270,14 @@ export default function CreateChallengeScreen() {
   const endDate = addDays(startDate, days - 1);
   // Stretched to reach a start already picked further out than the window,
   // so opening the wheel on an edit never moves it.
+  // From today: an era can start the day it's made, and its first members
+  // still join on Day 1.
   const startOffsets = Array.from(
-    { length: Math.max(START_WINDOW_DAYS, startOffset) },
-    (_, i) => i + 1,
+    { length: Math.max(START_WINDOW_DAYS, startOffset) + 1 },
+    (_, i) => i,
   );
+  const startLabel = (offset: number) =>
+    offset === 0 ? 'Today' : longDate(addDays(today, offset));
 
   const goTo = (next: Step) => {
     setStep(next);
@@ -520,11 +532,11 @@ export default function CreateChallengeScreen() {
               {/* Starts and Length as rows with their value at the end, each
                   opening the system's wheel on a sheet from the bottom. */}
               <SettingsGroup
-                footer={`Everyone starts together, and joining closes that day. It ends ${longDate(endDate)}.`}
+                footer={`Everyone starts together, and joining closes when that day ends. It ends ${longDate(endDate)}.`}
               >
                 <NativeExpandRow
                   label="Starts"
-                  value={longDate(startDate)}
+                  value={startLabel(startOffset)}
                   open={openWheel === 'start'}
                   onPress={() => {
                     setPendingOffset(startOffset);
@@ -677,22 +689,28 @@ export default function CreateChallengeScreen() {
             />
 
             <View style={styles.fields}>
-              <Field label="Name">
+              <Field label="Name" count={`${name.length}/${NAME_MAX}`}>
                 <TextInput
                   value={name}
-                  onChangeText={setName}
+                  onChangeText={(text) => setName(text.slice(0, NAME_MAX))}
+                  accessibilityLabel="Name"
                   placeholder="Name your era"
                   placeholderTextColor={colors.inkMuted}
+                  maxLength={NAME_MAX}
+                  autoCapitalize="words"
                   style={styles.input}
                 />
               </Field>
-              <Field label="Description">
+              <Field label="Description" count={`${description.length}/${DESCRIPTION_MAX}`}>
                 <TextInput
                   value={description}
-                  onChangeText={setDescription}
+                  onChangeText={(text) => setDescription(text.slice(0, DESCRIPTION_MAX))}
+                  accessibilityLabel="Description"
                   placeholder="What's it about, and who's it for?"
                   placeholderTextColor={colors.inkMuted}
+                  maxLength={DESCRIPTION_MAX}
                   multiline
+                  textAlignVertical="top"
                   style={[styles.input, styles.multiline]}
                 />
               </Field>
@@ -817,10 +835,10 @@ export default function CreateChallengeScreen() {
             <View style={styles.rules}>
               <Rule
                 label="Starts"
-                hint="Everyone starts together. Joining closes that day."
+                hint="Everyone starts together. Joining closes when that day ends."
               >
                 <Pill
-                  label={longDate(startDate)}
+                  label={startLabel(startOffset)}
                   icon="calendar-outline"
                   tone="muted"
                   labelVariant="metaBold"
@@ -876,7 +894,9 @@ export default function CreateChallengeScreen() {
                 {name.trim()} is live
               </Text>
               <Text variant="copy" color={colors.inkMuted} center>
-                It starts {longDate(startDate)}. Bring people along before joining closes.
+                {startOffset === 0
+                  ? 'It starts today. Bring people along before midnight, when joining closes.'
+                  : `It starts ${longDate(startDate)}. Bring people along before joining closes.`}
               </Text>
             </View>
 
@@ -961,7 +981,7 @@ export default function CreateChallengeScreen() {
           values={startOffsets}
           value={pendingOffset}
           onChange={setPendingOffset}
-          format={(offset) => longDate(addDays(today, offset))}
+          format={startLabel}
           style={styles.wheel}
         />
         <PrimaryButton
@@ -1066,21 +1086,27 @@ function NativeBasics({
         </HStack>
       </SettingsGroup>
 
-      <SettingsGroup>
+      {/* Each field its own group, its name over it and the count under it —
+          Edit profile's label, box and count, in the system list's form. */}
+      <SettingsGroup titleInk title="Name" footer={`${name.length}/${NAME_MAX}`}>
         <TextField
           text={nameText}
           placeholder="Name your era"
-          onTextChange={onName}
+          maxLength={NAME_MAX}
+          onTextChange={(text) => onName(text.slice(0, NAME_MAX))}
           modifiers={[textInputAutocapitalization('words')]}
         />
-        {/* Two lines tall before anything is typed, so it reads as the field
-            to say more in. */}
+      </SettingsGroup>
+      <SettingsGroup titleInk title="Description" footer={`${description.length}/${DESCRIPTION_MAX}`}>
+        {/* Three lines tall before anything is typed, as the bio is, so it
+            reads as the field to say more in. */}
         <TextField
           text={descriptionText}
           placeholder="What's it about, and who's it for?"
           axis="vertical"
-          onTextChange={onDescription}
-          modifiers={[lineLimit({ min: 2, max: 6 })]}
+          maxLength={DESCRIPTION_MAX}
+          onTextChange={(text) => onDescription(text.slice(0, DESCRIPTION_MAX))}
+          modifiers={[lineLimit({ min: 3, max: 6 })]}
         />
       </SettingsGroup>
 
@@ -1286,22 +1312,34 @@ function Cover({
   );
 }
 
-/** One filled box, the app's one field style — the same grey as a
- * dialog's field and the task cards: its name in the small bold cut, the
- * field under it. */
+/** A field as Edit profile draws it: its name over the box — in ink rather
+ * than Edit profile's grey, so it reads as the page's question — how much of
+ * its cap is used at the other end of that line, counted as you type, never
+ * told off after, and the box under them. */
 function Field({
   label,
+  count,
   children,
   style,
 }: {
   label: string;
+  count?: string;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.field, style]}>
-      <Text variant="metaBold">{label}</Text>
-      {children}
+    <View style={style}>
+      <View style={styles.fieldHead}>
+        <Text variant="meta" color={colors.ink}>
+          {label}
+        </Text>
+        {count ? (
+          <Text variant="badge" color={colors.inkMuted}>
+            {count}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.fieldBox}>{children}</View>
     </View>
   );
 }
@@ -1388,27 +1426,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fields: {
-    gap: layout.inline,
+    gap: layout.block,
   },
-  // The iPhone's own field corner, the one its grouped lists and search
-  // fields share; elsewhere the app's softer card one.
-  field: {
-    gap: layout.line,
-    backgroundColor: colors.surfaceSunken,
-    borderRadius: Platform.OS === 'ios' ? radii.sm : radii.lg,
+  // Nudged in off the box's corner, as on Edit profile.
+  fieldHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: layout.stack,
+    marginHorizontal: spacing.xs,
+  },
+  // Edit profile's box, in the page's grey fill rather than its white: this
+  // page is white, and a white box on it would vanish.
+  fieldBox: {
+    paddingHorizontal: spacing.lg,
     paddingVertical: layout.inline,
-    paddingHorizontal: layout.block,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSunken,
   },
+  // `copy` — face, size and tracking only: a line height on a single-line
+  // field shifts the text off centre.
   input: {
-    ...typeScale.copy,
+    fontFamily: typeScale.copy.fontFamily,
+    fontSize: typeScale.copy.fontSize,
+    letterSpacing: typeScale.copy.letterSpacing,
     color: colors.ink,
     padding: 0,
   },
-  // Two lines tall before anything is typed, so it reads as the field to
-  // say more in.
+  // The description wraps, so it takes the line height back and opens three
+  // lines tall, as the bio does.
   multiline: {
-    minHeight: typeScale.copy.lineHeight * 2,
-    textAlignVertical: 'top',
+    lineHeight: typeScale.copy.lineHeight,
+    minHeight: typeScale.copy.lineHeight * 3,
   },
   heading: {
     marginTop: layout.section,

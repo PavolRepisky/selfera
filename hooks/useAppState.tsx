@@ -29,14 +29,6 @@ import {
 } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
 import { orderBySlot } from '@/lib/slots';
-import {
-  DEMO_ERA,
-  DEMO_MEMBERSHIP,
-  demoCaptions,
-  demoChallenge,
-  demoProgress,
-  demoStartDate,
-} from '@/lib/demoEra';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { DAY_MS, isPosted, localDay, POST_COUNTDOWN_MS, startOfToday } from '@/lib/round';
 import { AppState as AppLifecycle } from 'react-native';
@@ -45,9 +37,7 @@ import { AppState as AppLifecycle } from 'react-native';
  * All app state lives here. Signed in, it is loaded from the backend — the
  * account's profile, the challenge it's in and every day of it so far — and
  * the splash stays up until it has been, so nothing shows before it's yours.
- * The parts not moved to the backend yet (friends, Community, comments,
- * challenges you build) still run on the demo data in `data/content`, in
- * memory. The actions below are the app's whole write surface.
+ * The actions below are the app's whole write surface.
  */
 
 export interface TaskProgress {
@@ -140,7 +130,7 @@ interface AppState {
    */
   postsAt: Record<number, number>;
   /** Every challenge there is, each with the round that matters to you —
-   * what the Challenges tab, search and a challenge's page show. */
+   * what Discover, search and a challenge's page show. */
   catalog: readonly Listing[];
   /** The challenges you've built yourself, oldest first — what Search's
    * Created by you lists, and what can still be edited until Day 1. */
@@ -162,8 +152,9 @@ interface AppState {
   /** The server's id for your place in the challenge — what your own posts
    * are kept against, so a reaction or comment on them lands. */
   membershipId: string | null;
-  /** Days until the round's Day 1, or 0 once it has started. Joining shuts
-   * on Day 1, so a challenge you've just joined is almost always waiting. */
+  /** Days until the round's Day 1, or 0 once it has started. Joining stays
+   * open through Day 1, so one you've just joined may be waiting or on its
+   * first day. */
   daysUntilStart: number;
   /** False until the signed-in account's data has loaded. */
   ready: boolean;
@@ -343,32 +334,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       avatarPath.current = profileRow.avatar_path;
 
-      // `DEMO_ERA`: a made-up run in place of whatever the account is in.
-      // No server ids behind it, so a shot or an undo stays on the phone.
-      if (DEMO_ERA) {
-        const demo = demoChallenge();
-        membershipId.current = null;
-        taskUuids.current = {};
-        setInChallenge(true);
-        setMembership(DEMO_MEMBERSHIP);
-        setChallenge(demo);
-        setTasksState([...demo.tasks]);
-        setTotalDays(demo.defaultDays);
-        setStartDateState(demoStartDate());
-        setProgress(demoProgress());
-        setCaptions(demoCaptions());
-        setPostsAt({});
-        setRemindersState(DEFAULT_REMINDERS);
-        return;
-      }
-
       if (!mine) {
         membershipId.current = null;
         taskUuids.current = {};
         setInChallenge(false);
         setMembership(null);
-        // A stand-in for screens that need a challenge to draw, with none of
-        // the demo's history behind it.
+        // A stand-in for screens that need a challenge to draw, with no
+        // history behind it.
         setChallenge(STAND_IN);
         setTasksState([...STAND_IN.tasks]);
         setTotalDays(STAND_IN.defaultDays);

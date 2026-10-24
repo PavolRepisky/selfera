@@ -90,12 +90,15 @@ export default function ChallengeSearchScreen() {
       ? [card.category, `${card.days} days`].filter(Boolean).join(' · ')
       : challengeDetail(card, false);
 
-  // A filter's chip: on, it's filled and taps off again.
+  // A filter's chip: on, it's filled and taps off again. Off, it's grey
+  // with ink type on the iPhone too, not the system's blue capsule — a row
+  // of blue chips would read as a row of calls to act.
   const chip = (key: string, label: string, on: boolean, onPress: () => void) => (
     <Pill
       key={key}
       label={label}
       tone={on ? 'solid' : 'muted'}
+      grey
       labelVariant="metaBold"
       trailingIcon={on ? 'close' : undefined}
       style={on ? undefined : styles.chip}

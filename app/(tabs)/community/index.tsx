@@ -118,6 +118,7 @@ export default function CommunityScreen() {
     relations,
     refreshToday,
     toggleRequest: toggleAdded,
+    activityBadge,
   } = useSocial();
   const added = relations.outgoing;
   const [tab, setTab] = useState<Tab>('friends');
@@ -320,8 +321,8 @@ export default function CommunityScreen() {
   );
 
   return (
-    // Challenges' own fixed title row: the title on the gutter, Find friends
-    // at the end, staying put while the feed scrolls under it.
+    // Discover's own fixed title row: the title on the gutter, Activity and
+    // Find friends at the end, staying put while the feed scrolls under it.
     <View style={styles.screenRoot}>
       <ScreenScroll
         tabBar
@@ -332,6 +333,14 @@ export default function CommunityScreen() {
             plainTitle="Community"
             showBack={false}
             actions={[
+              // Its badge counts friend requests waiting on you and anything
+              // new since Activity was last opened.
+              {
+                icon: 'notifications-outline',
+                label: 'Activity',
+                badge: activityBadge,
+                onPress: () => router.push('/activity'),
+              },
               { icon: 'person-add-outline', label: 'Find friends', onPress: () => router.push('/add-friends') },
             ]}
           />

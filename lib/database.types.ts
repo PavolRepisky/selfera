@@ -27,6 +27,7 @@ export type Database = {
                   Row: {
                     "challenge_id": string,"id": string,"key": string | null,"label": string,"note": string | null,"position": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "challenge_id": string,"id"?: string,"key"?: string | null,"label": string,"note"?: string | null,"position": number
                   }
@@ -46,6 +47,7 @@ isOneToOne: false
                   Row: {
                     "category": Database["public"]['Enums']["challenge_category"] | null,"created_at": string,"creator_id": string | null,"default_days": number,"description": string,"id": string,"lives": number,"name": string,"photo_paths": (string)[],"slug": string | null,"stamp": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "category"?: Database["public"]['Enums']["challenge_category"] | null,"created_at"?: string,"creator_id"?: string | null,"default_days": number,"description"?: string,"id"?: string,"lives"?: number,"name": string,"photo_paths"?: (string)[],"slug"?: string | null,"stamp"?: string
                   }
@@ -65,6 +67,7 @@ isOneToOne: false
                   Row: {
                     "author_id": string,"body": string,"created_at": string,"day": number,"id": string,"membership_id": string,"parent_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "author_id": string,"body": string,"created_at"?: string,"day": number,"id"?: string,"membership_id": string,"parent_id"?: string | null
                   }
@@ -102,6 +105,7 @@ isOneToOne: false
                   Row: {
                     "caption": string,"day": number,"membership_id": string,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "caption": string,"day": number,"membership_id": string,"updated_at"?: string
                   }
@@ -127,6 +131,7 @@ isOneToOne: false
                   Row: {
                     "day": number,"membership_id": string,"posts_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "day": number,"membership_id": string,"posts_at": string
                   }
@@ -152,6 +157,7 @@ isOneToOne: false
                   Row: {
                     "accepted_at": string | null,"addressee_id": string,"created_at": string,"requester_id": string,"status": Database["public"]['Enums']["friendship_status"]
                   }
+                  ComputedFields: never
                   Insert: {
                     "accepted_at"?: string | null,"addressee_id": string,"created_at"?: string,"requester_id": string,"status"?: Database["public"]['Enums']["friendship_status"]
                   }
@@ -177,6 +183,7 @@ isOneToOne: false
                   Row: {
                     "ended_at": string | null,"id": string,"reminders": NonNullable<Json>,"round_id": string,"signed_at": string,"status": Database["public"]['Enums']["membership_status"],"user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "ended_at"?: string | null,"id"?: string,"reminders"?: NonNullable<Json>,"round_id": string,"signed_at"?: string,"status"?: Database["public"]['Enums']["membership_status"],"user_id": string
                   }
@@ -208,6 +215,7 @@ isOneToOne: false
                   Row: {
                     "actor_id": string,"comment_id": string | null,"created_at": string,"day": number | null,"emoji": string | null,"id": string,"kind": Database["public"]['Enums']["notification_kind"],"membership_id": string | null,"read_at": string | null,"recipient_id": string,"round_id": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "actor_id": string,"comment_id"?: string | null,"created_at"?: string,"day"?: number | null,"emoji"?: string | null,"id"?: string,"kind": Database["public"]['Enums']["notification_kind"],"membership_id"?: string | null,"read_at"?: string | null,"recipient_id": string,"round_id"?: string | null
                   }
@@ -263,6 +271,7 @@ isOneToOne: false
                   Row: {
                     "completion_id": string,"viewed_at": string,"viewer_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "completion_id": string,"viewed_at"?: string,"viewer_id": string
                   }
@@ -288,6 +297,7 @@ isOneToOne: false
                   Row: {
                     "avatar_path": string | null,"bio": string | null,"created_at": string,"handle": string,"id": string,"name": string,"timezone": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "avatar_path"?: string | null,"bio"?: string | null,"created_at"?: string,"handle": string,"id": string,"name"?: string,"timezone"?: string
                   }
@@ -301,6 +311,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"day": number,"emoji": string,"membership_id": string,"user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"day": number,"emoji": string,"membership_id": string,"user_id": string
                   }
@@ -332,6 +343,7 @@ isOneToOne: false
                   Row: {
                     "challenge_id": string,"created_at": string,"days": number,"id": string,"start_date": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "challenge_id": string,"created_at"?: string,"days": number,"id"?: string,"start_date": string
                   }
@@ -351,6 +363,7 @@ isOneToOne: false
                   Row: {
                     "completed_at": string,"day": number,"id": string,"membership_id": string,"photo_path": string,"photo_updated_at": string,"slot": number | null,"task_id": string,"thumb_path": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "completed_at"?: string,"day": number,"id"?: string,"membership_id": string,"photo_path": string,"photo_updated_at"?: string,"slot"?: number | null,"task_id": string,"thumb_path": string
                   }
@@ -385,13 +398,15 @@ isOneToOne: false
                   Row: {
                     "accepted_at": string | null,"friend_id": string | null,"user_id": string | null
                   }
+                  ComputedFields: never
                   Relationships: [
                     
                   ]
                 },"membership_progress": {
                   Row: {
-                    "challenge_id": string | null,"current_day": number | null,"days": number | null,"done_today": number | null,"lives": number | null,"lives_left": number | null,"membership_id": string | null,"missed_days": number | null,"round_id": string | null,"start_date": string | null,"status": Database["public"]['Enums']["membership_status"] | null,"task_count": number | null,"user_id": string | null
+                    "challenge_id": string,"current_day": number | null,"days": number,"done_today": number | null,"lives": number,"lives_left": number | null,"membership_id": string,"missed_days": number | null,"round_id": string,"start_date": string,"status": Database["public"]['Enums']["membership_status"],"task_count": number | null,"user_id": string
                   }
+                  ComputedFields: never
                   Relationships: [
                     {
       foreignKeyName: "memberships_round_id_fkey"
@@ -421,8 +436,9 @@ isOneToOne: false
                   ]
                 },"round_stats": {
                   Row: {
-                    "finished": number | null,"members": number | null,"round_id": string | null,"still_going": number | null
+                    "finished": number | null,"members": number | null,"round_id": string,"still_going": number | null
                   }
+                  ComputedFields: never
                   Relationships: [
                     
                   ]
@@ -443,7 +459,7 @@ isOneToOne: false
                            },
 "community_today":
 { Args: { "scope": string }; Returns: {
-              "avatar_path": string,"caption": string,"challenge_id": string,"comments": number,"day": number,"done": number,"handle": string,"is_friend": boolean,"last_completed_at": string,"lives_left": number,"membership_id": string,"my_reaction": string,"name": string,"reactions": number,"request_sent": boolean,"task_count": number,"posts_at": string | null,"unlocked": boolean,"user_id": string,"views": number
+              "avatar_path": string,"caption": string,"challenge_id": string,"comments": number,"day": number,"done": number,"handle": string,"is_friend": boolean,"last_completed_at": string,"lives_left": number,"membership_id": string,"my_reaction": string,"name": string,"posts_at": string,"reactions": number,"request_sent": boolean,"task_count": number,"unlocked": boolean,"user_id": string,"views": number
             }[]
                            },
 "complete_task":
@@ -491,7 +507,7 @@ isOneToOne: false
 { Args: { "mid": string }; Returns: boolean
                            },
 "post_countdown":
-{ Args: Record<PropertyKey, never>; Returns: unknown
+{ Args: Record<PropertyKey, never>; Returns: string
                            },
 "post_now":
 { Args: Record<PropertyKey, never>; Returns: string

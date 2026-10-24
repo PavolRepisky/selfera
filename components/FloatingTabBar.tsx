@@ -27,7 +27,7 @@ function Glyph({
   const size = 27;
 
   switch (icon) {
-    // Challenges you have not joined yet: the tab is a bearing to take, not a
+    // Eras you have not joined yet: the tab is a bearing to take, not a
     // list to read.
     case 'discover':
       return (

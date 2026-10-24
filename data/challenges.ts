@@ -8,7 +8,7 @@ export interface ChallengeTask {
   note?: string;
 }
 
-/** The five browse filters on the Challenges list. */
+/** The five topic filters on search, opened from Discover. */
 export type ChallengeCategory = 'Fitness' | 'Health' | 'Mindset' | 'Lifestyle' | 'Study';
 
 export interface Challenge {

@@ -36,7 +36,7 @@ export const InNativeBar = createContext(false);
 const NATIVE_ITEM = 36;
 
 /** The round corner buttons on a tab root's title line — My Profile's QR and
- * Settings, the Challenges "+", Tasks' settings — and the photo viewer's
+ * Settings, Discover's "+", Tasks' settings — and the photo viewer's
  * actions, all one size wherever they sit. */
 export const cornerButtonSize = 46;
 export const cornerIconSize = 22;

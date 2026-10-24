@@ -38,7 +38,7 @@ const LINK = NATIVE_HEADER ? colors.systemAccent : colors.inkMuted;
 /**
  * Discover, kept to two things: a carousel of featured rounds as covers, and
  * the rest trending as plain rows under it. Only rounds you can still join are here — everyone starts on one shared
- * day and joining shuts on it — and the one you're in isn't: Tasks is where
+ * day and joining shuts when that day ends — and the one you're in isn't: Tasks is where
  * it lives. Rounds under way or finished are behind See all and search.
  *
  * Featured leads with the ones most of your friends are in, then the ones
@@ -165,7 +165,7 @@ export default function DiscoverScreen() {
         <EmptyState
           icon="calendar-outline"
           title="Nothing starting soon"
-          hint="Start one yourself — friends can join until its first day."
+          hint="Start one yourself — even today. Friends can join until its first day ends."
           action={{ label: 'Create an era', onPress: () => router.push('/challenge/create') }}
         />
       )}

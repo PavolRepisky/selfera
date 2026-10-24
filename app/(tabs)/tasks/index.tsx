@@ -18,7 +18,6 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { AlertDialog } from '@/components/AlertDialog';
 import { Avatar } from '@/components/Avatar';
 import { CameraSheet } from '@/components/CameraSheet';
-import { ChallengeRow } from '@/components/ChallengeRow';
 import { CheckCircle } from '@/components/CheckCircle';
 import { EmptyState } from '@/components/EmptyState';
 import { DayCover, POST_RATIO, shotClock } from '@/components/DayCover';
@@ -37,7 +36,6 @@ import {
   useApp,
   useDayProgress,
 } from '@/hooks/useAppState';
-import { useChallengeCards } from '@/hooks/useChallengeCards';
 import { clockLeftToday, clockTime, timeStamp } from '@/lib/format';
 import { isPosted, POST_COUNTDOWN_MS } from '@/lib/round';
 
@@ -45,9 +43,7 @@ import { isPosted, POST_COUNTDOWN_MS } from '@/lib/round';
  * Today's post being filled in, at the shape it goes up in: the post edge to
  * edge under the bar, a cell for every task — a photo once it's in, a
  * grey cell naming the task and how to shoot it until then — with the
- * day's clock floating at its top. Under it, the era you're on as one row:
- * its photo, the day and how many are in, the lives left, opening the era.
- * Then, while some are still to shoot, the day's tasks as a list: each one's
+ * day's clock floating at its top. Under it, while some are still to shoot, the day's tasks as a list: each one's
  * name and how to shoot it, its reminder, and a tick once its photo is in.
  *
  * Tapping a slot opens the camera on that slot's task, and the shot goes
@@ -78,11 +74,6 @@ import { isPosted, POST_COUNTDOWN_MS } from '@/lib/round';
  */
 const SYSTEM_CAMERA = true;
 
-/** The hearts in the era row, at about the cap height of the words under
- * them. */
-const HEART = 14;
-/** The era row's chevron, a step under its name's size. */
-const CHEVRON = 18;
 /** How long typing has to pause before a caption is saved — about a breath,
  * so a sentence goes up as one write rather than one per letter. */
 const CAPTION_SAVE_MS = 800;
@@ -123,8 +114,6 @@ export default function TasksScreen() {
     totalDays,
     challenge,
     tasks,
-    livesLeft,
-    livesTotal,
     undoTask,
     completeTaskWithPhoto,
     inChallenge,
@@ -142,10 +131,6 @@ export default function TasksScreen() {
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
-  // The era you're on as the browse screens list it — its photos and its
-  // page — for the row under the post.
-  const eraCard = useChallengeCards().find((card) => card.mine);
-
   // In the post's own order, piece by piece.
   const rows = useDayProgress(currentDay);
   const done = rows.filter((row) => row.done).length;
@@ -376,50 +361,10 @@ export default function TasksScreen() {
           ) : null}
         </PhotoCollage>
 
-        {/* The era you're on as one row, in the app's own list-row shape:
-            its photo, where the day stands, and at its end the lives left —
-            opening the era's page. */}
-        {eraCard ? (
-          <ChallengeRow
-            card={eraCard}
-            detail={
-              waiting
-                ? eraCard.statusLabel
-                : `Day ${currentDay} of ${totalDays} · ${done} of ${rows.length} in`
-            }
-            trailing={
-              <View style={styles.eraEnd}>
-                <View
-                  style={styles.lives}
-                  accessible
-                  accessibilityLabel={`${livesLeft} of ${livesTotal} lives left`}
-                >
-                  <View style={styles.hearts}>
-                    {Array.from({ length: livesTotal }, (_, i) => (
-                      <Ionicons
-                        key={i}
-                        name="heart"
-                        size={HEART}
-                        color={i < livesLeft ? colors.ink : colors.inkGhost}
-                      />
-                    ))}
-                  </View>
-                  <Text variant="badge" color={colors.inkMuted}>
-                    {livesLeft === 1 ? '1 life left' : `${livesLeft} lives left`}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={CHEVRON} color={colors.inkMuted} />
-              </View>
-            }
-            onPress={() => router.push({ pathname: '/feed/[id]', params: { id: eraCard.id } })}
-            style={styles.era}
-          />
-        ) : null}
-
         {/* The day's tasks, while some are still to shoot: each one's name
             and how to shoot it, when it nudges you while it's open, and its
             photo and a tick once it's in. A row does what its piece does.
-            How many are in is the era row's to say, just above. Before Day 1
+            Before Day 1
             they're the tasks every day will hold, not today's. Once every
             photo is in, composing the post takes this place. */}
         {allDone ? null : (
@@ -754,35 +699,12 @@ const styles = StyleSheet.create({
   badgePill: {
     alignSelf: 'center',
   },
-  // The era's row on the grey of a native list's card, so it reads as a way
-  // into the era rather than loose text under the post.
-  era: {
-    marginTop: layout.block,
-    paddingHorizontal: layout.inline,
-    paddingVertical: layout.stack,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceSunken,
-  },
-  eraEnd: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.stack,
-  },
-  // The hearts over the words, so three hearts never have to be counted.
-  lives: {
-    alignItems: 'flex-end',
-    gap: layout.line,
-  },
-  hearts: {
-    flexDirection: 'row',
-    gap: layout.line / 2,
-  },
-  // What stands under the era row once every photo is in.
+  // What stands under the post once every photo is in.
   finish: {
     marginTop: layout.section,
     gap: layout.block,
   },
-  // Where the post stands, as one row on the era row's grey: the ring or the
+  // Where the post stands, as one row on the fill grey: the ring or the
   // tick, then a title over a line of detail.
   status: {
     flexDirection: 'row',
@@ -868,7 +790,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.inline,
   },
-  // Rounded as the era row's photo is, on the fill grey while it's open.
+  // Rounded as a list row's photo is, on the fill grey while it's open.
   taskThumb: {
     width: TASK_THUMB,
     height: TASK_THUMB,

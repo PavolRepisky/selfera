@@ -38,7 +38,7 @@ import { useChallengeListing, useRoundResults } from '@/hooks/useChallengeCards'
 import { useSession } from '@/hooks/useSession';
 import { useSocial } from '@/hooks/useSocial';
 import { addDays, clock24, longDate, ordinal, shortDate } from '@/lib/format';
-import { localDay, roundState } from '@/lib/round';
+import { joinOpen, localDay, roundState } from '@/lib/round';
 
 /** The photos across the top: one tall beside two stacked, edge to edge and
  * butted together with no seam, so the three read as one picture. As tall as
@@ -140,12 +140,17 @@ export default function FeedScreen() {
   if (state.kind === 'upcoming') {
     return <ChallengePage {...page} mode={joined ? 'waiting' : 'preview'} day={null} />;
   }
+  // Day 1 still takes new members until its midnight, so someone not in it
+  // yet sees the page they could join from, not the closed one.
+  if (!joined && joinOpen(start)) {
+    return <ChallengePage {...page} mode="preview" day={state.day} />;
+  }
   return <ChallengePage {...page} mode={joined ? 'active' : 'closed'} day={state.day} />;
 }
 
 /**
- * Where you stand with a round: `preview` — it hasn't started and you could
- * join; `waiting` — you've joined and Day 1 is still to come; `active` —
+ * Where you stand with a round: `preview` — it hasn't started, or it's Day
+ * 1, and you could join; `waiting` — you've joined and Day 1 is still to come; `active` —
  * it's under way and you're in it; `closed` — it's under way without you.
  */
 type PageMode = 'preview' | 'waiting' | 'active' | 'closed';
@@ -192,8 +197,12 @@ function ChallengePage({
   // Every stage's badge leads with a mark: the calendar before Day 1, the
   // tick once you're in, the hourglass while it runs (the browse lists'
   // own "under way"), the lock once joining has closed.
+  const startedToday = day === 1;
   const badge: { label: string; icon: keyof typeof Ionicons.glyphMap } = {
-    preview: { label: `Starts ${longDate(start)}`, icon: 'calendar-outline' as const },
+    preview: {
+      label: startedToday ? 'Started today · join until midnight' : `Starts ${longDate(start)}`,
+      icon: 'calendar-outline' as const,
+    },
     waiting: { label: `You're in · starts ${longDate(start)}`, icon: 'checkmark' as const },
     active: { label: `Day ${day} of ${totalDays} · you're in`, icon: 'hourglass-outline' as const },
     closed: { label: `Day ${day} of ${totalDays} · closed to join`, icon: 'lock-closed' as const },
@@ -305,11 +314,11 @@ function ChallengePage({
   const dockNote =
     mode === 'preview' ? (
       <Text variant="meta" color={colors.inkMuted} center>
-        Joining closes when it starts · ends {longDate(end)}
+        Joining closes when Day 1 ends · ends {longDate(end)}
       </Text>
     ) : (
       <Text variant="meta" color={colors.inkMuted} center>
-        They can join until it starts ·{' '}
+        They can join until Day 1 ends ·{' '}
         <Text variant="metaBold" onPress={toSettings}>
           Edit reminders
         </Text>
@@ -406,7 +415,7 @@ function ChallengePage({
         >
           {mode === 'preview' ? (
             <PrimaryButton
-              label={`Join · starts ${longDate(start)}`}
+              label={startedToday ? 'Join · started today' : `Join · starts ${longDate(start)}`}
               onPress={() => router.push({ pathname: '/join/[id]', params: { id: section.id } })}
             />
           ) : (

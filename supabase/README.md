@@ -8,17 +8,10 @@ and `lib/backend/*`. There's no separate server.
 
 | path | what |
 | --- | --- |
-| `migrations/…01_profiles.sql` | accounts, made on sign-up; time zone per account |
-| `migrations/…02_challenges.sql` | challenges, tasks, rounds (a shared Day 1), memberships; create / edit / join / leave |
-| `migrations/…03_progress.sql` | task completions (today only), captions, lives and missed days, standings |
-| `migrations/…04_social.sql` | the Community lock, friends, comments, reactions, views, notifications, the Community feed |
-| `migrations/…05_storage.sql` | buckets and who may upload or read which photo |
-| `migrations/…06_settle_job.sql` | every 15 min: runs that ran out of lives → lost, runs past their last day → finished |
-| `migrations/…13_post_countdown.sql` | a finished day's 90-second countdown to going up (`day_posts`); captions only in it; fixed after |
+| `migrations/…01_init.sql` | everything, in order: accounts (made on sign-up, a time zone each); challenges, tasks, rounds (a shared Day 1) and memberships; task completions (today only), captions and the 90-second post countdown (`day_posts`); lives, missed days and standings; the Community lock, friends, comments, reactions, views, notifications and invites; the Community feed; storage buckets and who may read or upload which photo; the 15-minute settle job; the preset eras |
 | `functions/delete-account` | Settings' Delete account — photos first, then the user |
-| `seed.sql` | **local only**: the presets plus the app's demo cast |
 | `tests/database/rules.test.sql` | the rules, checked as the people they apply to |
-| `tests/api-smoke.mjs` | the same through the real API, storage included |
+| `tests/api-smoke.mjs` | the same through the real API, storage included — makes its own two people and era, and removes them after |
 
 ## The rules it holds
 
@@ -43,19 +36,20 @@ Needs Docker Desktop running and Node ≥ 20.19 (`nvm use 25.2.1`).
 
 ```sh
 npm run db:start     # first run downloads the images; prints the URL and keys
-npm run db:reset     # re-apply every migration + seed.sql
+npm run db:reset     # rebuild from the migrations: no accounts, just the presets
 npm run db:test      # database tests
 npx supabase functions serve   # in another terminal, then:
 npm run db:smoke     # end-to-end through the API
 npm run db:types     # after a schema change → lib/database.types.ts
 ```
 
-Studio (table browser) runs at http://127.0.0.1:54323. Demo sign-ins:
-`julia@selfera.test` (and lily, zoe, mia, sofia, elena, nora, camila) with
-password `selfera-demo`.
+Studio (table browser) runs at http://127.0.0.1:54323. There are no demo
+accounts: sign up in the app (or add a user in Studio) to have one.
 
 A schema change is a **new** migration (`npx supabase migration new <name>`),
-never an edit to one already pushed to a hosted project.
+never an edit to one already pushed to a hosted project. The fourteen
+migrations before 2026-10-25 were folded into `…01_init.sql` when the
+database was wiped; they're in git history if anything needs tracing.
 
 ## Hosted project
 

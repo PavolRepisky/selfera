@@ -108,6 +108,11 @@ function roundStatus(
       shortStatus: `${MONTHS[start.getMonth()]} ${start.getDate()}`,
     };
   }
+  // Day 1 is still open to join, so it sits with the ones starting soon —
+  // the browse lists and Discover offer it until midnight.
+  if (state.kind === 'running' && state.day === 1) {
+    return { phase: 'upcoming', statusLabel: 'Started today', shortStatus: 'Today' };
+  }
   if (state.kind === 'running') {
     return {
       phase: 'active',

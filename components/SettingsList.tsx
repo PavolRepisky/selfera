@@ -170,11 +170,15 @@ export function SettingsList({
 
 export function SettingsGroup({
   title,
+  titleInk,
   footer,
   footerCentered,
   children,
 }: {
   title?: string;
+  /** Sets the title in ink rather than the list's grey — where it names a
+   * field to fill in, as a form's labels do, not a group to read. */
+  titleInk?: boolean;
   /** The small print under the group — what a field is for, or why it
    * didn't save. */
   footer?: string;
@@ -186,7 +190,14 @@ export function SettingsGroup({
   if (NATIVE_HEADER) {
     return (
       <Section
-        title={title}
+        title={titleInk ? undefined : title}
+        header={
+          titleInk && title ? (
+            <SystemText modifiers={[quicksand('subheadline'), foregroundStyle(scheme.ink)]}>
+              {title}
+            </SystemText>
+          ) : undefined
+        }
         // White rows, cards on the `alt` grey the list shows through.
         modifiers={[listRowBackground(scheme.surface)]}
         footer={
@@ -214,7 +225,7 @@ export function SettingsGroup({
   return (
     <View style={styles.group}>
       {title ? (
-        <Text variant="metaBold" color={colors.inkMuted} style={styles.groupTitle}>
+        <Text variant="metaBold" color={titleInk ? colors.ink : colors.inkMuted} style={styles.groupTitle}>
           {title}
         </Text>
       ) : null}

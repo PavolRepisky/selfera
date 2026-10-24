@@ -225,7 +225,7 @@ joined.
 `AvatarPlaceholder` / `AvatarSilhouette` — deterministic gradient stand-ins
 seeded by a string, and the only place literal hex is allowed.
 
-**`FloatingTabBar`** — the four tabs (Challenges · Community · Tasks ·
+**`FloatingTabBar`** — the four tabs (Discover · Community · Tasks ·
 Profile), outline icons until focused, a glass lens behind the bar and a light
 pill behind the active tab. `hidden` takes it away for the live camera.
 
