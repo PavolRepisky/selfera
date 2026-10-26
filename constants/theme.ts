@@ -602,7 +602,7 @@ export const type = {
     lineHeight: 10,
     letterSpacing: 0,
   },
-  /** "selfera" at the cover's foot — a maker's mark a step over the era
+  /** "selfera.app" at the cover's foot — a maker's mark a step over the era
    * name, held back by its opacity rather than by being smaller. On a
    * cover scaled to a 390pt phone's width it shows at about 15. */
   coverMark: {

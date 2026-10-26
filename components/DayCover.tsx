@@ -55,7 +55,7 @@ const SLIDE_SHADOW_OFFSET = { width: 0, height: COVER_WIDTH / 390 };
  * room under its letters, and the name reads as the day's own when it
  * sits close. */
 const ERA_DROP = 2;
-/** "Selfera" at the foot, held back so it signs the cover without being
+/** "selfera.app" at the foot, held back so it signs the cover without being
  * read before the day. */
 const MARK_OPACITY = 0.6;
 /** How far up from the foot it sits, in the cover's own layout — 14pt on a
@@ -121,7 +121,7 @@ export interface DayCoverProps {
  * A finished day as its cover — the face a day wears in a grid, before it's
  * opened: its photos edge to edge with no seam; across the middle of the
  * cover the day in script over the era's name, on a soft shadow; and
- * "Selfera", faint, at its foot. A cover made to share can also carry each
+ * "selfera.app", faint, at its foot. A cover made to share can also carry each
  * photo's time, and its task, very small in its middle.
  *
  * Laid out at a fixed card width and scaled whole into whatever box it's
@@ -265,7 +265,7 @@ export function DayCover({
 }
 
 /**
- * "Selfera", faint, centred at the foot — the cover's own mark, laid over
+ * "selfera.app", faint, centred at the foot — the cover's own mark, laid over
  * whatever box it's put in. `width` is that box's width: outside a cover
  * (a post's photo slides) the mark is scaled from the cover's own layout
  * width, so it lands at the size and inset the cover shows it at beside
@@ -285,8 +285,8 @@ export function CoverMark({ width }: { width?: number }) {
         style={[styles.mark, styles.slideShadow, scale !== 1 && { transform: [{ scale }] }]}
       >
         {/* All lower case, as a wordmark rather than the app's name in a
-            sentence. */}
-        selfera
+            sentence, and the address, so a shared post says where to find it. */}
+        selfera.app
       </Text>
     </View>
   );

@@ -290,7 +290,7 @@ padding:
   serif back for headlines.
 - **Allura** — the "Day N/75" written across the middle of a `DayCover`
   (`coverDay`). **Inter Tight** — the rest of that cover: the era name
-  under the day (`coverEra`), the faint lower-case "selfera" wordmark at its foot (`coverMark`, in
+  under the day (`coverEra`), the faint lower-case "selfera.app" wordmark at its foot (`coverMark`, in
   Inclusive Sans Bold, set close, drawn by `CoverMark`, which signs each of a
   post's photo slides the same way),
   and — only on the saved story, where its switches turn them on — each
