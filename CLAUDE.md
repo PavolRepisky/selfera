@@ -326,8 +326,8 @@ the grabber, shared by Share profile and Comments · `AlertDialog` · `PopoverMe
 `ChallengeLengthSheet` · `PhotoLibrarySheet` · `ShareProfileSheet` your
 profile's QR code card (name, handle, today's day) with Copy link, Save and
 Share · `ShareCoverSheet` a finished
-day's cover as a 9:16 story in a bottom sheet (a switch each for the photos' times and tasks), with Save
-(to Photos) and Share (the image through the phone's share sheet) side by side — opened from Tasks' Save button once the post is up.
+day to post, in a bottom sheet with Story · TikTok · Instagram (a switch each for the photos' times and tasks): Story is the cover at 9:16 with Save
+(to Photos) and Share (the image through the phone's share sheet) side by side; TikTok (9:16) and Instagram (3:4) are the whole post as a slideshow — cover, then each photo — saved to Photos last-first so the recents list it in order, with Open TikTok / Open Instagram beside Save (Expo Go can't hand several files or post into either app directly) — opened from Tasks' Save button once the post is up.
 
 **Content** · `ChallengeRun` the run you're on as one square a day, on ink or (`quiet`) a white card on a profile · `CheckCircle` a done task's tick · `TaskRing` a face in the split
 task ring with its "3/5" badge, or round Tasks' shutter — every ring, the profile's

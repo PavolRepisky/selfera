@@ -181,48 +181,66 @@ export function DayCover({
                 ) : (
                   <Placeholder seed={cell.seed ?? cell.key} radius={0} style={absoluteFill} />
                 )}
-                {captioned && ((times && cell.time) || (tasks && cell.label)) ? (
-                  <View style={styles.caption}>
-                    {times && cell.time ? (
-                      <Text variant="coverCaption" color={colors.onMedia} style={styles.shadow}>
-                        {shotClock(cell.time)}
-                      </Text>
-                    ) : null}
-                    {tasks && cell.label ? (
-                      <Text
-                        variant="coverCaption"
-                        color={colors.onMedia}
-                        numberOfLines={2}
-                        style={[styles.shadow, styles.centred]}
-                      >
-                        {cell.label}
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null}
               </View>
             )}
           />
+          {SHOW_DAY && SHOW_SHADE ? (
+            <View style={styles.middle}>
+              <Svg width={SHADE_WIDTH} height={SHADE_HEIGHT} style={styles.shade}>
+                <Defs>
+                  <RadialGradient id="coverShade" cx="50%" cy="50%" rx="50%" ry="50%">
+                    <Stop offset="0" stopColor={shade} stopOpacity={SHADE_OPACITY} />
+                    <Stop offset="0.5" stopColor={shade} stopOpacity={SHADE_OPACITY * SHADE_HALFWAY} />
+                    <Stop offset="1" stopColor={shade} stopOpacity={0} />
+                  </RadialGradient>
+                </Defs>
+                <Ellipse
+                  cx={SHADE_WIDTH / 2}
+                  cy={SHADE_HEIGHT / 2}
+                  rx={SHADE_WIDTH / 2}
+                  ry={SHADE_HEIGHT / 2}
+                  fill="url(#coverShade)"
+                />
+              </Svg>
+            </View>
+          ) : null}
+          {/* Each photo's time and task in a layer of its own, laid out on
+              the same pieces as the photos but over the shade, so the oval
+              darkens the photos round the day without dimming the small
+              print that falls inside it. */}
+          {captioned && (times || tasks) ? (
+            <View style={absoluteFill}>
+              <MosaicArrangement
+                cells={cells}
+                seam={0}
+                renderCell={(cell) => (
+                  <View key={cell.key} style={PIECE}>
+                    {(times && cell.time) || (tasks && cell.label) ? (
+                      <View style={styles.caption}>
+                        {times && cell.time ? (
+                          <Text variant="coverCaption" color={colors.onMedia} style={styles.shadow}>
+                            {shotClock(cell.time)}
+                          </Text>
+                        ) : null}
+                        {tasks && cell.label ? (
+                          <Text
+                            variant="coverCaption"
+                            color={colors.onMedia}
+                            numberOfLines={2}
+                            style={[styles.shadow, styles.centred]}
+                          >
+                            {cell.label}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </View>
+                )}
+              />
+            </View>
+          ) : null}
           {SHOW_DAY ? (
             <View style={styles.middle}>
-              {SHOW_SHADE ? (
-                <Svg width={SHADE_WIDTH} height={SHADE_HEIGHT} style={styles.shade}>
-                  <Defs>
-                    <RadialGradient id="coverShade" cx="50%" cy="50%" rx="50%" ry="50%">
-                      <Stop offset="0" stopColor={shade} stopOpacity={SHADE_OPACITY} />
-                      <Stop offset="0.5" stopColor={shade} stopOpacity={SHADE_OPACITY * SHADE_HALFWAY} />
-                      <Stop offset="1" stopColor={shade} stopOpacity={0} />
-                    </RadialGradient>
-                  </Defs>
-                  <Ellipse
-                    cx={SHADE_WIDTH / 2}
-                    cy={SHADE_HEIGHT / 2}
-                    rx={SHADE_WIDTH / 2}
-                    ry={SHADE_HEIGHT / 2}
-                    fill="url(#coverShade)"
-                  />
-                </Svg>
-              ) : null}
               <Text variant="coverDay" color={colors.onMedia} style={styles.letteringShadow}>
                 {totalDays ? `Day ${day}/${totalDays}` : `Day ${day}`}
               </Text>
@@ -317,7 +335,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: layout.gutter,
   },
-  // Centred behind the two lines, whatever their length.
+  // Centred on the cover, where the two lines sit over it.
   shade: {
     position: 'absolute',
   },
