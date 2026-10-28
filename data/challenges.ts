@@ -6,6 +6,9 @@ export interface ChallengeTask {
   /** One line on how to do it, so everyone's photo proves the same thing —
    * written on the create form; the presets go without. */
   note?: string;
+  /** Times a week it's done, 1–7, set on the create form; everyone joining
+   * picks which weekdays. Left out, every day — as all the presets are. */
+  perWeek?: number;
 }
 
 /** The five topic filters on search, opened from Discover. */

@@ -2,6 +2,7 @@ import type { Reminders } from '@/hooks/useAppState';
 import type { ChallengeCategory } from '@/data/challenges';
 import type { Database } from '@/lib/database.types';
 import { removePhotos, uploadTaskPhoto } from '@/lib/backend/photos';
+import type { Schedule } from '@/lib/schedule';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -233,9 +234,21 @@ export async function fetchStandings(roundId: string) {
   return must(await supabase.rpc('round_standings', { rid: roundId }));
 }
 
-/** Signing the pledge. Ends whichever challenge you were on. */
-export async function joinRound(roundId: string, reminders: Reminders): Promise<string> {
-  return must(await supabase.rpc('join_round', { rid: roundId, reminders: { ...reminders } }));
+/**
+ * Signing the pledge, with the weekdays picked for each task that isn't
+ * daily. The app keys a preset's tasks by their short key ("h1"), the
+ * server by uuid, so the picks are put back on the uuids first. Ends
+ * whichever challenge you were on.
+ */
+export async function joinRound(roundId: string, reminders: Reminders, schedule: Schedule): Promise<string> {
+  const round = must(
+    await supabase.from('rounds').select('challenge:challenges(tasks:challenge_tasks(id, key))').eq('id', roundId).single(),
+  );
+  const uuidOf = new Map((round.challenge?.tasks ?? []).map((t) => [t.key ?? t.id, t.id]));
+  const picks = Object.fromEntries(
+    Object.entries(schedule).flatMap(([id, days]) => (uuidOf.has(id) ? [[uuidOf.get(id)!, [...days]]] : [])),
+  );
+  return must(await supabase.rpc('join_round', { rid: roundId, reminders: { ...reminders }, schedule: picks }));
 }
 
 export async function setReminders(reminders: Reminders) {
@@ -254,7 +267,7 @@ export interface ChallengeForm {
   description: string;
   category?: ChallengeCategory;
   photoPaths: readonly string[];
-  tasks: readonly { id?: string; label: string; note?: string }[];
+  tasks: readonly { id?: string; label: string; note?: string; perWeek?: number }[];
   days: number;
   /** ISO `YYYY-MM-DD`, Day 1. */
   startDate: string;
@@ -266,7 +279,7 @@ const formPayload = (form: ChallengeForm) => ({
   description: form.description,
   category: form.category ?? null,
   photo_paths: [...form.photoPaths],
-  tasks: form.tasks.map((t) => ({ id: t.id ?? null, label: t.label, note: t.note ?? null })),
+  tasks: form.tasks.map((t) => ({ id: t.id ?? null, label: t.label, note: t.note ?? null, per_week: t.perWeek ?? 7 })),
   days: form.days,
   start_date: form.startDate,
   lives: form.lives,

@@ -3,9 +3,9 @@ import type { Friend } from '@/data/content';
 import type { DayRecord, PastRun } from '@/lib/backend/social';
 
 /**
- * Someone's days as a profile draws them: each day's photos and how many of
- * its tasks got done. Tiles on the grid and calendar are small, so they take
- * thumbnails where there are any.
+ * Someone's days as a profile draws them: each day's photos, how many of
+ * its tasks got done and how many were due. Tiles on the grid and calendar
+ * are small, so they take thumbnails where there are any.
  */
 export function profileDays(records: readonly DayRecord[]): Map<number, ProfileDay> {
   return new Map(
@@ -25,6 +25,8 @@ export function profileDays(records: readonly DayRecord[]): Map<number, ProfileD
             : [],
         ),
         done: tasks.filter((task) => task.done).length,
+        // A day's tasks are only the ones due on it, so their count is its whole.
+        total: tasks.length,
       },
     ]),
   );

@@ -128,6 +128,7 @@ export default function TasksScreen() {
     postNow,
     profile,
     reminders,
+    tasksOn,
   } = useApp();
   const router = useRouter();
   const waiting = daysUntilStart > 0;
@@ -222,6 +223,29 @@ export default function TasksScreen() {
             action={{ label: 'Join an era', onPress: () => router.navigate('/discover') }}
           />
         )}
+      </ScreenScroll>
+    );
+  }
+
+  // A rest day: nothing of yours is due, so there's no post to fill — only
+  // a word on when the next shot is. It can't be missed, so nothing waits.
+  if (rows.length === 0) {
+    const tomorrow = currentDay < totalDays ? tasksOn(currentDay + 1) : [];
+    return (
+      <ScreenScroll
+        tabBar
+        onRefresh={reload}
+        header={<ScreenHeader plainTitle="Tasks" showBack={false} />}
+      >
+        <EmptyState
+          icon="cafe-outline"
+          title={waiting ? 'Day 1 is a rest day' : `Day ${currentDay} is a rest day`}
+          hint={
+            tomorrow.length
+              ? `Nothing to shoot ${waiting ? 'that day' : 'today'}. Day ${currentDay + 1}: ${tomorrow.map((task) => task.label).join(', ')}.`
+              : `Nothing to shoot ${waiting ? 'that day' : 'today'}.`
+          }
+        />
       </ScreenScroll>
     );
   }
@@ -364,12 +388,15 @@ export default function TasksScreen() {
         {/* The day's tasks, while some are still to shoot: each one's name
             and how to shoot it, when it nudges you while it's open, and its
             photo and a tick once it's in. A row does what its piece does.
-            Before Day 1
-            they're the tasks every day will hold, not today's. Once every
-            photo is in, composing the post takes this place. */}
+            Only the tasks due that day: one done a few times a week is only
+            here on its days. Before Day 1 they're Day 1's — every day's, when
+            every task is daily. Once every photo is in, composing the post
+            takes this place. */}
         {allDone ? null : (
           <View style={styles.tasks}>
-            <Text variant="sectionHeading">{waiting ? 'Daily tasks' : 'Today'}</Text>
+            <Text variant="sectionHeading">
+              {!waiting ? 'Today' : tasks.every((task) => task.perWeek === undefined) ? 'Daily tasks' : 'Day 1'}
+            </Text>
             {rows.map((row, slot) => {
               const remindAt = reminders.tasks[row.task.id] === undefined
                 ? DEFAULT_TASK_REMINDER

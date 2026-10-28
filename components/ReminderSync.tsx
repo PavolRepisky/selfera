@@ -10,6 +10,7 @@ import {
   planReminders,
   scheduleReminders,
 } from '@/lib/reminders';
+import { taskWeekdays } from '@/lib/schedule';
 
 /** How long changes settle before the week is planned again — a burst of
  * them (a load, a photo and its save) is planned once, not once each. */
@@ -25,7 +26,14 @@ configureNotifications();
  */
 export function ReminderSync() {
   const router = useRouter();
-  const { ready, inChallenge, startDate, totalDays, tasks, reminders, progress, currentDay } = useApp();
+  const { ready, inChallenge, startDate, totalDays, tasks, schedule, reminders, progress, currentDay } = useApp();
+
+  // Each task with the weekdays it's due on, so a task done three times a
+  // week only nudges on its three days.
+  const planned = useMemo(
+    () => tasks.map((task) => ({ ...task, weekdays: taskWeekdays(task, schedule) })),
+    [tasks, schedule],
+  );
 
   // Today's done tasks as one key, so a photo of a task re-plans but an
   // unrelated change to the day's entries doesn't.
@@ -52,7 +60,7 @@ export function ReminderSync() {
             now: new Date(),
             startDate,
             totalDays,
-            tasks,
+            tasks: planned,
             reminders,
             doneToday: new Set(doneKey ? doneKey.split(',') : []),
           })
@@ -64,7 +72,7 @@ export function ReminderSync() {
         .catch(() => {});
     }, SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [ready, inChallenge, startDate, totalDays, tasks, reminders, doneKey, wake]);
+  }, [ready, inChallenge, startDate, totalDays, planned, reminders, doneKey, wake]);
 
   useEffect(
     () => () => {

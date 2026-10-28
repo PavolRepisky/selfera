@@ -84,6 +84,9 @@ export interface ProfileDay {
   shots: readonly ProfileShot[];
   /** How many of its tasks were done. */
   done: number;
+  /** How many were due that day — a task done a few times a week only
+   * counts on its days. Zero on a rest day, which counts as kept. */
+  total: number;
 }
 
 /** An era the profile ran before the current one, its days kept on the page
@@ -116,7 +119,8 @@ export interface ProfileViewProps {
   /** The run's day today; 0 before Day 1, when the card says when it starts. */
   currentDay: number;
   totalDays: number;
-  /** Tasks in a day — the ring's segments and every "3/5". */
+  /** Tasks due today — the ring's segments and its "3/5". Other days carry
+   * their own count, `ProfileDay.total`. */
   taskCount: number;
   /** A day's record, or null where the profile has none to show. */
   dayOf: (day: number) => ProfileDay | null;
@@ -228,7 +232,7 @@ export function ProfileView({
           ? [{
               key: `${run.key}-day-${day}`,
               day,
-              taskCount: run.taskCount,
+              taskCount: record.total,
               totalDays: run.totalDays,
               rows: record.shots,
               done: record.done,
@@ -248,14 +252,17 @@ export function ProfileView({
 
   // The profile in three counts, as one line: the longest stretch of days
   // finished back to back in any one era (a day counts only with every task
-  // in it, so a missed or half-done day breaks the run); the eras seen
-  // through to the end; and friends.
+  // due on it in, so a missed or half-done day breaks the run, and a rest
+  // day carries it); the eras seen through to the end; and friends.
   const bestRun = Math.max(
     0,
     ...runs.map((run) => {
-      const full = new Set(
-        run.posted.filter((day) => (run.dayOf(day)?.done ?? 0) >= run.taskCount && run.taskCount > 0),
-      );
+      const last = Math.max(0, ...run.posted);
+      const full = new Set<number>();
+      for (let day = 1; day <= last; day += 1) {
+        const record = run.dayOf(day);
+        if (record && record.done >= record.total) full.add(day);
+      }
       let best = 0;
       for (const day of full) {
         // Counted forward from the first day of each stretch only.
@@ -283,7 +290,7 @@ export function ProfileView({
   // The run card counts a day's photos rather than holding them.
   const runDay = useCallback((day: number): RunDay | null => {
     const record = dayOf(day);
-    return record ? { done: record.done, shots: record.shots.length } : null;
+    return record ? { done: record.done, total: record.total, shots: record.shots.length } : null;
   }, [dayOf]);
 
   // A tap on the photo plays today's story — the ring around it is that
@@ -395,7 +402,6 @@ export function ProfileView({
             startDate={startDate}
             currentDay={currentDay}
             totalDays={totalDays}
-            taskCount={taskCount}
             dayOf={runDay}
             tone="quiet"
             lives={lives}

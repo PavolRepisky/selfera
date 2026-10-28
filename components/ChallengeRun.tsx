@@ -38,10 +38,12 @@ const SQUARE_TODAY_BORDER = 2;
 /** How one day of the run is drawn. */
 type SquareState = 'done' | 'partial' | 'missed' | 'today' | 'ahead';
 
-/** What the card needs of one day: how many tasks got done, and whether any
- * photo came of it. */
+/** What the card needs of one day: how many tasks got done of how many were
+ * due, and whether any photo came of it. A rest day has none due, and
+ * counts as done. */
 export interface RunDay {
   done: number;
+  total: number;
   shots: number;
 }
 
@@ -52,7 +54,6 @@ export interface ChallengeRunProps {
    * come and the card says when it starts instead. */
   currentDay: number;
   totalDays: number;
-  taskCount: number;
   /** A day's record, or null where there's none to show — left blank rather
    * than marked missed. */
   dayOf: (day: number) => RunDay | null;
@@ -133,7 +134,6 @@ export function ChallengeRun({
   startDate,
   currentDay,
   totalDays,
-  taskCount,
   dayOf,
   tone = 'ink',
   lives,
@@ -154,10 +154,10 @@ export function ChallengeRun({
         if (day > currentDay) return 'ahead';
         const record = dayOf(day);
         if (!record) return 'ahead';
-        if (record.done >= taskCount) return 'done';
+        if (record.done >= record.total) return 'done';
         return record.shots ? 'partial' : 'missed';
       }),
-    [totalDays, currentDay, dayOf, taskCount],
+    [totalDays, currentDay, dayOf],
   );
 
   // Fifteen across, cut to whatever width the card leaves — worked out from

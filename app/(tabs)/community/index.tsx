@@ -102,7 +102,9 @@ export default function CommunityScreen() {
     daysUntilStart,
     profile,
     challenge,
-    tasks,
+    // Today's tasks only: one done a few times a week isn't part of today
+    // unless it's one of its days.
+    todayTasks: tasks,
     progress,
     captions,
     currentDay,
@@ -203,10 +205,11 @@ export default function CommunityScreen() {
   const openTasks = () => router.push('/(tabs)/tasks');
 
   const myAvatar: AvatarSource = profile.avatar ?? profile.avatarSeed;
-  // Whether you have a today of your own: in a challenge that has started.
-  // Without one there's no face of yours in the rows, no progress of yours
-  // to race and no post of yours — only everyone else's.
-  const myDayRunning = inChallenge && daysUntilStart === 0;
+  // Whether you have a today of your own: in a challenge that has started,
+  // on a day with something due. Without one — a rest day too — there's no
+  // face of yours in the rows, no progress of yours to race and no post of
+  // yours — only everyone else's.
+  const myDayRunning = inChallenge && daysUntilStart === 0 && tasks.length > 0;
   const myDone = myDayRunning
     ? tasks.filter((task) => progress[currentDay]?.[task.id]?.done).length
     : 0;

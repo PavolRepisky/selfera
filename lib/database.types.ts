@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "challenge_tasks": {
                   Row: {
-                    "challenge_id": string,"id": string,"key": string | null,"label": string,"note": string | null,"position": number
+                    "challenge_id": string,"id": string,"key": string | null,"label": string,"note": string | null,"per_week": number,"position": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "challenge_id": string,"id"?: string,"key"?: string | null,"label": string,"note"?: string | null,"position": number
+                    "challenge_id": string,"id"?: string,"key"?: string | null,"label": string,"note"?: string | null,"per_week"?: number,"position": number
                   }
                   Update: {
-                    "challenge_id"?: string,"id"?: string,"key"?: string | null,"label"?: string,"note"?: string | null,"position"?: number
+                    "challenge_id"?: string,"id"?: string,"key"?: string | null,"label"?: string,"note"?: string | null,"per_week"?: number,"position"?: number
                   }
                   Relationships: [
                     {
@@ -181,14 +181,14 @@ isOneToOne: false
                   ]
                 },"memberships": {
                   Row: {
-                    "ended_at": string | null,"id": string,"reminders": NonNullable<Json>,"round_id": string,"signed_at": string,"status": Database["public"]['Enums']["membership_status"],"user_id": string
+                    "ended_at": string | null,"id": string,"reminders": NonNullable<Json>,"round_id": string,"schedule": NonNullable<Json>,"signed_at": string,"status": Database["public"]['Enums']["membership_status"],"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "ended_at"?: string | null,"id"?: string,"reminders"?: NonNullable<Json>,"round_id": string,"signed_at"?: string,"status"?: Database["public"]['Enums']["membership_status"],"user_id": string
+                    "ended_at"?: string | null,"id"?: string,"reminders"?: NonNullable<Json>,"round_id": string,"schedule"?: NonNullable<Json>,"signed_at"?: string,"status"?: Database["public"]['Enums']["membership_status"],"user_id": string
                   }
                   Update: {
-                    "ended_at"?: string | null,"id"?: string,"reminders"?: NonNullable<Json>,"round_id"?: string,"signed_at"?: string,"status"?: Database["public"]['Enums']["membership_status"],"user_id"?: string
+                    "ended_at"?: string | null,"id"?: string,"reminders"?: NonNullable<Json>,"round_id"?: string,"schedule"?: NonNullable<Json>,"signed_at"?: string,"status"?: Database["public"]['Enums']["membership_status"],"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -474,8 +474,14 @@ isOneToOne: false
 "day_posted":
 { Args: { "d": number,"mid": string }; Returns: boolean
                            },
+"default_weekdays":
+{ Args: { "per_week": number }; Returns: (number)[]
+                           },
 "delete_challenge":
 { Args: { "cid": string }; Returns: undefined
+                           },
+"due_tasks":
+{ Args: { "d": number,"mid": string }; Returns: string[]
                            },
 "friend_suggestions":
 { Args: { "max_rows"?: number }; Returns: {
@@ -489,7 +495,7 @@ isOneToOne: false
 { Args: { "rid": string,"target": string }; Returns: undefined
                            },
 "join_round":
-{ Args: { "reminders"?: Json,"rid": string }; Returns: string
+{ Args: { "reminders"?: Json,"rid": string,"schedule"?: Json }; Returns: string
                            },
 "leave_round":
 { Args: Record<PropertyKey, never>; Returns: undefined
@@ -529,6 +535,12 @@ isOneToOne: false
 "settle_memberships":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
+"task_due":
+{ Args: { "on_date": string,"per_week": number,"schedule": Json,"task": string }; Returns: boolean
+                           },
+"task_weekdays":
+{ Args: { "per_week": number,"schedule": Json,"task": string }; Returns: (number)[]
+                           },
 "undo_task":
 { Args: { "task": string }; Returns: Json
                            },
@@ -543,6 +555,9 @@ isOneToOne: false
                            },
 "valid_reminders":
 { Args: { "r": Json }; Returns: boolean
+                           },
+"valid_schedule":
+{ Args: { "s": Json }; Returns: boolean
                            },
 "write_challenge_tasks":
 { Args: { "cid": string,"tasks": Json }; Returns: undefined

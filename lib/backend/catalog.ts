@@ -83,7 +83,12 @@ export function toChallenge(row: Row<'challenges'>, tasks: readonly Row<'challen
       : undefined,
     tasks: [...tasks]
       .sort((a, b) => a.position - b.position)
-      .map((t) => (t.note ? { id: t.key ?? t.id, label: t.label, note: t.note } : { id: t.key ?? t.id, label: t.label })),
+      .map((t) => ({
+        id: t.key ?? t.id,
+        label: t.label,
+        ...(t.note ? { note: t.note } : {}),
+        ...(t.per_week < 7 ? { perWeek: t.per_week } : {}),
+      })),
     defaultDays: round.days,
     startDate: round.start_date,
     lives: row.lives,

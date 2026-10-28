@@ -8,7 +8,7 @@ import {
   VStack,
 } from '@expo/ui/swift-ui';
 import { datePickerStyle, foregroundStyle, labelsHidden } from '@expo/ui/swift-ui/modifiers';
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { StyleSheet, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, colorsFor, layout } from '@/constants/theme';
@@ -81,6 +81,9 @@ export interface ReminderRowProps {
   onToggle: () => void;
   /** Rules the row off from the one below it. */
   divider?: boolean;
+  /** Drawn under the row, inside its rule — the join page's weekday chips
+   * for a task that isn't daily. */
+  children?: ReactNode;
 }
 
 /**
@@ -103,7 +106,7 @@ const DEFAULT_ON = 8 * 60;
  * it for whether there's a nudge at all. Off hides the time; on brings back
  * the last one it had.
  */
-function SystemReminderRow({ label, hint, strong, value, onChange, divider }: ReminderRowProps) {
+function SystemReminderRow({ label, hint, strong, value, onChange, divider, children }: ReminderRowProps) {
   // The time's editing highlight in the system blue; the switch keeps the
   // system's green.
   const scheme = colorsFor(useColorScheme());
@@ -113,34 +116,37 @@ function SystemReminderRow({ label, hint, strong, value, onChange, divider }: Re
   at.setHours(Math.floor(lastOn.current / 60), lastOn.current % 60, 0, 0);
 
   return (
-    <View style={[styles.row, divider && styles.rowDivider]}>
-      <View style={styles.rowText}>
-        <Text variant={strong ? 'copyBold' : 'copy'} numberOfLines={1}>
-          {label}
-        </Text>
-        {hint ? (
-          <Text variant="meta" color={colors.inkMuted} numberOfLines={strong ? 1 : undefined}>
-            {hint}
+    <View style={divider && styles.rowDivider}>
+      <View style={styles.row}>
+        <View style={styles.rowText}>
+          <Text variant={strong ? 'copyBold' : 'copy'} numberOfLines={1}>
+            {label}
           </Text>
-        ) : null}
-      </View>
-      <Host matchContents>
-        <HStack spacing={layout.stack}>
-          {value !== null ? (
-            <DatePicker
-              selection={at}
-              displayedComponents={['hourAndMinute']}
-              onDateChange={(next) => onChange(next.getHours() * 60 + next.getMinutes())}
-              modifiers={[datePickerStyle('compact'), labelsHidden(), tint(scheme.systemAccent)]}
-            />
+          {hint ? (
+            <Text variant="meta" color={colors.inkMuted} numberOfLines={strong ? 1 : undefined}>
+              {hint}
+            </Text>
           ) : null}
-          <Toggle
-            isOn={value !== null}
-            onIsOnChange={(on) => onChange(on ? lastOn.current : null)}
-            modifiers={[labelsHidden()]}
-          />
-        </HStack>
-      </Host>
+        </View>
+        <Host matchContents>
+          <HStack spacing={layout.stack}>
+            {value !== null ? (
+              <DatePicker
+                selection={at}
+                displayedComponents={['hourAndMinute']}
+                onDateChange={(next) => onChange(next.getHours() * 60 + next.getMinutes())}
+                modifiers={[datePickerStyle('compact'), labelsHidden(), tint(scheme.systemAccent)]}
+              />
+            ) : null}
+            <Toggle
+              isOn={value !== null}
+              onIsOnChange={(on) => onChange(on ? lastOn.current : null)}
+              modifiers={[labelsHidden()]}
+            />
+          </HStack>
+        </Host>
+      </View>
+      {children ? <View style={styles.rowExtra}>{children}</View> : null}
     </View>
   );
 }
@@ -204,6 +210,7 @@ function DrawnReminderRow({
   open,
   onToggle,
   divider,
+  children,
 }: ReminderRowProps) {
   return (
     <View style={divider && styles.rowDivider}>
@@ -229,6 +236,7 @@ function DrawnReminderRow({
           style={styles.rowWheel}
         />
       ) : null}
+      {children ? <View style={styles.rowExtra}>{children}</View> : null}
     </View>
   );
 }
@@ -264,5 +272,9 @@ const styles = StyleSheet.create({
   },
   rowWheel: {
     marginBottom: layout.inline,
+  },
+  rowExtra: {
+    gap: layout.stack,
+    paddingBottom: layout.inline,
   },
 });

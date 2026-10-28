@@ -39,6 +39,7 @@ import { useSession } from '@/hooks/useSession';
 import { useSocial } from '@/hooks/useSocial';
 import { addDays, clock24, longDate, ordinal, shortDate } from '@/lib/format';
 import { joinOpen, localDay, roundState } from '@/lib/round';
+import { EVERY_DAY, perWeekLabel, photosPerWeek } from '@/lib/schedule';
 
 /** The photos across the top: one tall beside two stacked, edge to edge and
  * butted together with no seam, so the three read as one picture. As tall as
@@ -180,7 +181,7 @@ function ChallengePage({
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, progress, currentDay, livesLeft } = useApp();
+  const { profile, progress, currentDay, livesLeft, todayTasks } = useApp();
   const [openPhotoIndex, setOpenPhotoIndex] = useState<number | null>(null);
   // Measured rather than assumed, so the scroll clears the dock's two lines
   // whatever they wrap to.
@@ -188,6 +189,7 @@ function ChallengePage({
 
   const { challenge } = useChallengeListing(section.id);
   const lives = challenge.lives ?? LIVES_PER_CHALLENGE;
+  const weekly = challenge.tasks.some((task) => (task.perWeek ?? EVERY_DAY) < EVERY_DAY);
   const inIt = mode === 'waiting' || mode === 'active';
   const going = mode === 'active' || mode === 'closed';
 
@@ -239,14 +241,18 @@ function ChallengePage({
   );
   const dailyTasks = (
     <>
-      {/* Once you're in and it's running, the list is today's: a shot
-          task ticked, with the time it was taken. */}
+      {/* Once you're in and it's running, the list is today's — only the
+          tasks due on it — a shot task ticked, with the time it was taken.
+          Otherwise every task, each one done less than daily saying how
+          often. */}
       <View style={styles.block}>
         <Text variant="sectionHeading">
-          {mode === 'active' ? "Today's tasks" : 'Daily tasks'}
+          {mode === 'active' ? "Today's tasks" : weekly ? 'Tasks' : 'Daily tasks'}
         </Text>
-        {challenge.tasks.map((task) => {
+        {(mode === 'active' ? todayTasks : challenge.tasks).map((task) => {
           const entry = todays?.[task.id];
+          const often = (task.perWeek ?? EVERY_DAY) < EVERY_DAY ? perWeekLabel(task.perWeek) : null;
+          const hint = [mode === 'active' ? null : often, task.note].filter(Boolean).join(' · ');
           return (
             <View key={task.id} style={styles.taskRow}>
               {entry?.done ? (
@@ -260,9 +266,9 @@ function ChallengePage({
                   <Text variant="meta" color={colors.inkMuted}>
                     {entry.time ? `Done at ${clock24(entry.time)}` : 'Done'}
                   </Text>
-                ) : task.note ? (
+                ) : hint ? (
                   <Text variant="meta" color={colors.inkMuted}>
-                    {task.note}
+                    {hint}
                   </Text>
                 ) : null}
               </View>
@@ -342,9 +348,13 @@ function ChallengePage({
         />
         <Term
           icon="camera-outline"
-          label="Every day"
-          value={`${challenge.tasks.length} ${challenge.tasks.length === 1 ? 'photo' : 'photos'}`}
-          hint="One per task, before midnight"
+          label={weekly ? 'Every week' : 'Every day'}
+          value={
+            weekly
+              ? `${photosPerWeek(challenge.tasks)} photos`
+              : `${challenge.tasks.length} ${challenge.tasks.length === 1 ? 'photo' : 'photos'}`
+          }
+          hint={weekly ? 'One per task on the days you pick, before midnight' : 'One per task, before midnight'}
           ruled
         />
         <Term
@@ -393,7 +403,9 @@ function ChallengePage({
           section={section}
           badge={badge.label}
           badgeIcon={badge.icon}
-          editable={!going}
+          // Only while Day 1 is still to come: on Day 1 itself, still open to
+          // join, the server already refuses a change.
+          editable={day === null}
           onOpenPhoto={setOpenPhotoIndex}
         />
 
@@ -814,7 +826,9 @@ function Finished({
                 <RunStat value={String(myGroup.days)} label="best streak" />
                 <RunStat value={`#${myRank + 1}`} label={`of ${members}`} ruled />
                 <RunStat
-                  value={(myGroup.days * challenge.tasks.length).toLocaleString('en-US')}
+                  // A day's photos averaged over the week, for an era
+                  // whose tasks aren't all daily.
+                  value={Math.round((myGroup.days * photosPerWeek(challenge.tasks)) / 7).toLocaleString('en-US')}
                   label="photos"
                   ruled
                 />
@@ -912,11 +926,15 @@ function Finished({
               spelled out row by row, now it's over. */}
           <View style={styles.roundStats}>
             <RoundStat value={String(totalDays)} label="days" />
-            <RoundStat
-              value={String(challenge.tasks.length)}
-              label={challenge.tasks.length === 1 ? 'photo a day' : 'photos a day'}
-              ruled
-            />
+            {challenge.tasks.some((task) => (task.perWeek ?? EVERY_DAY) < EVERY_DAY) ? (
+              <RoundStat value={String(photosPerWeek(challenge.tasks))} label="photos a week" ruled />
+            ) : (
+              <RoundStat
+                value={String(challenge.tasks.length)}
+                label={challenge.tasks.length === 1 ? 'photo a day' : 'photos a day'}
+                ruled
+              />
+            )}
             <RoundStat value={String(lives)} label={lives === 1 ? 'life' : 'lives'} ruled />
           </View>
 

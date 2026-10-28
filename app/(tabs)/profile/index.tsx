@@ -25,7 +25,7 @@ import { profileRun } from '@/lib/profileDays';
 export default function ProfileScreen() {
   const router = useRouter();
   const {
-    profile, currentDay, totalDays, startDate, challenge, tasks, progress, inChallenge,
+    profile, currentDay, totalDays, startDate, challenge, tasksOn, todayTasks, progress, inChallenge,
     daysUntilStart, membershipId, livesLeft, livesTotal, reload,
   } = useApp();
   const { session } = useSession();
@@ -40,22 +40,29 @@ export default function ProfileScreen() {
   }, [userId, membershipId, loadPage]);
 
   const dayOf = useCallback(
-    (day: number): ProfileDay => ({
-      shots: orderBySlot(tasks, progress[day]).flatMap((task) => {
-        const entry = progress[day]?.[task.id];
-        return entry?.photo || entry?.photoSeed
-          ? [{ key: task.id, photo: entry.thumb ?? entry.photo ?? null, seed: entry.photoSeed ?? null }]
-          : [];
-      }),
-      done: tasks.filter((task) => progress[day]?.[task.id]?.done).length,
-    }),
-    [tasks, progress],
+    (day: number): ProfileDay => {
+      const due = tasksOn(day);
+      return {
+        shots: orderBySlot(due, progress[day]).flatMap((task) => {
+          const entry = progress[day]?.[task.id];
+          return entry?.photo || entry?.photoSeed
+            ? [{ key: task.id, photo: entry.thumb ?? entry.photo ?? null, seed: entry.photoSeed ?? null }]
+            : [];
+        }),
+        done: due.filter((task) => progress[day]?.[task.id]?.done).length,
+        total: due.length,
+      };
+    },
+    [tasksOn, progress],
   );
 
   // Today is a story as soon as one task has its photo — until then there is
   // nothing to watch, and the photo is just a photo.
   const hasStoryToday = inChallenge && dayOf(currentDay).shots.length > 0;
-  const dayFinished = (day: number) => tasks.length > 0 && dayOf(day).done === tasks.length;
+  const dayFinished = (day: number) => {
+    const record = dayOf(day);
+    return record.total > 0 && record.done === record.total;
+  };
 
   // Same order the day pager pages through — opening a tile and paging down
   // must land on the next tile in this exact sequence. Today only joins the
@@ -131,7 +138,7 @@ export default function ProfileScreen() {
           startDate={startDate}
           currentDay={daysUntilStart > 0 ? 0 : currentDay}
           totalDays={totalDays}
-          taskCount={tasks.length}
+          taskCount={todayTasks.length}
           dayOf={dayOf}
           posted={postedDays}
           pastRuns={pastRuns}

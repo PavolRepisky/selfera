@@ -34,8 +34,8 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
 | `(tabs)/discover` | A carousel of featured eras you can still join (ranked by friends in them, then by members), then Trending rows. Search and See all open `challenges/search`. |
 | `(tabs)/profile` | `ProfileView` for you: avatar inside the split task ring (no ring outside an era), name and bio (the handle is the bar's title, through `ProfileHeader`, on yours and anyone else's), the stats as one line under the bio ("30-day best run", "1 era finished", "6 friends" with a faint upright rule between each; best run = most full days back to back in one era), Edit profile and Share profile as two grey pills (on someone else's: Add friend / Friends and Share profile), the era's run card (`ChallengeRun`, `quiet`, opening the era) — between eras a "Ready for a new era?" card with Find an era instead, and with no era ever an empty state with Start new era — then My Eras: each era (current first, then every past one: Finished, Out of lives or Left) as a header row (name, badge, day count, chevron, opening its feed) over its three latest day covers. No calendar and no missed days on a profile. Settings is in the header; the Share profile button opens `ShareProfileSheet`. |
 | `feed/[id]` | One era's page: photos, terms, daily tasks, lives, who's in it, with one docked action (Join, etc.). It reads differently for invited, joined and waiting, running, and watching. Once the round is over it becomes `Finished`: podium, standings, who ran out of lives. |
-| `join/[id]` | Joining in 2 steps: reminder time per task plus a last call, then the pledge signed with `SignaturePad`. Signing is what joins. |
-| `challenge/create` | Build your own era in 3 steps (what it is, daily tasks up to 9, rules: length, start date, lives 0–5), then a "live" page with invites. `?edit` reopens it for changes before Day 1. |
+| `join/[id]` | Joining in 2 steps: per task a reminder time — and, for a task done less than daily, exactly its times a week picked as weekdays on a `WeekdayPicker` (Continue waits until every pick is full) — plus a last call; then the pledge, naming the picked days, signed with `SignaturePad`. Signing is what joins; the days are fixed from then on. |
+| `challenge/create` | Build your own era in 3 steps (what it is, tasks up to 9 each with how often — every day down to once a week —, rules: length, start date — today unless moved later — and lives 0–5), then a "live" page with invites. `?edit` reopens it for changes before Day 1. |
 | `challenges/search` | Every era, with a search field and filter chips (yours, topic, length). Results are grouped as starting soon, under way, finished. |
 | `day/[day]` | One of your eras as a scrolling feed (`DaysFeed` of `FriendCard`s), titled with the era's name and holding only its days, starting at the day you tapped (`?run=` names a past era). A tile or an era's header row on the profile opens it. |
 | `friend/[id]`, `friend/post/[id]` | Someone else's `ProfileView`, and one of their eras as a days feed, as `day/[day]` is for yours. Their today follows the lock. |
@@ -71,6 +71,7 @@ first route (`app/index.tsx` redirects to it). On iOS the tab bar is
   `data/content.ts` now supplies only types (`Friend`), `LOVE` (the one
   reaction, a heart) and the
   photo strips. People are no longer demo data.
+- `lib/schedule.ts`: tasks done **a few times a week**. A task's `perWeek` (1–7, unset = every day) is set by the creator; each member's `schedule` holds the weekdays they picked while joining. `tasksOn(day)` (on `useApp`, with `todayTasks`) is the tasks due that day, and every "whole day" question — Tasks, rings, missed days, lives, streaks, the lock, reminders — asks it, never `tasks`. A day with nothing due is a **rest day**: it can't be missed, carries a streak, has no post, and leaves the lock open. The server mirrors it (`task_weekdays`, `due_tasks`).
 - `lib/round.ts`: every round has **one shared Day 1**. `roundState`
   returns upcoming, running or ended. An era can start the day it's made;
   joining stays open through Day 1 (`joinOpen`) and closes at its midnight,
@@ -318,7 +319,7 @@ actions · `Card` white surface · `EmptyState` glyph on a grey disc, title, hin
 **Controls** · `PrimaryButton` · `IconButton` circular · `Pill`
 (`floating`|`solid`|`muted`|`outline` × `sm`|`md`|`lg`) · `SegmentedTabs` the pill
 switch · `StepBar` a flow's segmented progress · `SignaturePad`
-a finger-drawn signature · `SlideToConfirm` a knob slid along a track to act, the phone's slide to answer (Tasks' slide to post) · `ReminderPill` a reminder's time or Never, with its menu and wheel · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
+a finger-drawn signature · `SlideToConfirm` a knob slid along a track to act, the phone's slide to answer (Tasks' slide to post) · `ReminderPill` a reminder's time or Never, with its menu and wheel · `WeekdayPicker` seven day chips, Monday first, holding exactly a task's times a week · `RulerSlider` tick picker · `WheelPicker` the iOS date-wheel drum ·
 `SearchBar`.
 
 **Overlays** · `BottomSheet` · `SheetHeader` a sheet's centred title under

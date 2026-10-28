@@ -59,5 +59,13 @@ const many = Array.from({ length: 12 }, (_, i) => ({ id: `t${i}`, label: `Task $
 plan = planReminders({ now: day(2026, 10, 5, 7), startDate: day(2026, 10, 1), totalDays: 75, tasks: many, reminders: defaults, doneToday: none });
 check(plan.length === 60 && plan[59].at >= plan[0].at, 'capped at 60, soonest first');
 
+// A task three times a week: Monday, Wednesday, Friday. 5 Oct 2026 is a
+// Monday, so the week ahead holds three of it — and a last call only on the
+// days something is due.
+const lift = [{ id: 'l1', label: 'Lift', weekdays: [1, 3, 5] }];
+plan = planReminders({ now: day(2026, 10, 5, 7), startDate: day(2026, 10, 1), totalDays: 75, tasks: lift, reminders: defaults, doneToday: none });
+check(plan.filter((r) => r.title === 'Lift').map((r) => r.at.getDay()).join(',') === '1,3,5', 'a weekly task is only reminded of on its days');
+check(plan.filter((r) => r.title === 'Last call').length === 3, 'and a rest day has no last call');
+
 console.log(failures ? `${failures} FAILED` : 'ALL PASSED');
 process.exit(failures ? 1 : 0);

@@ -27,7 +27,7 @@ export default function DayPostScreen() {
   const openedDay = Number(dayParam) || 1;
   const postedDays = usePostedDays();
 
-  const { profile, tasks, progress, captions, currentDay, membershipId, challenge, reload } = useApp();
+  const { profile, tasksOn, progress, captions, currentDay, membershipId, challenge, reload } = useApp();
   const { session } = useSession();
   const userId = session?.user.id ?? null;
   const { loadPage } = useSocial();
@@ -61,16 +61,16 @@ export default function DayPostScreen() {
     const all = past
       ? pastRunPosted(past)
       : postedDays.filter(
-          (day) => day < currentDay || tasks.every((task) => progress[day]?.[task.id]?.done),
+          (day) => day < currentDay || tasksOn(day).every((task) => progress[day]?.[task.id]?.done),
         );
     // A day reached by a link rather than a tap on the grid — nothing
     // photographed yet, say — has no neighbours in the feed to scroll onto,
     // so it shows just itself.
     return all.includes(openedDay) ? all : [openedDay];
-  }, [past, postedDays, currentDay, tasks, progress, openedDay]);
+  }, [past, postedDays, currentDay, tasksOn, progress, openedDay]);
 
   const tasksFor = (day: number): Friend['tasks'] =>
-    orderBySlot(tasks, progress[day]).map((task) => {
+    orderBySlot(tasksOn(day), progress[day]).map((task) => {
       const entry = progress[day]?.[task.id];
       return {
         label: task.label,

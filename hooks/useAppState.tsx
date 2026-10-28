@@ -31,6 +31,7 @@ import { isoDay, timeStamp } from '@/lib/format';
 import { orderBySlot } from '@/lib/slots';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { DAY_MS, isPosted, localDay, POST_COUNTDOWN_MS, startOfToday } from '@/lib/round';
+import { tasksOn as dueOn, type Schedule } from '@/lib/schedule';
 import { AppState as AppLifecycle } from 'react-native';
 
 /**
@@ -138,6 +139,15 @@ interface AppState {
 
   /** The two nudges picked while joining a challenge. */
   reminders: Reminders;
+  /** The weekdays picked while joining for each task that isn't daily, by
+   * task id. Fixed once signed. */
+  schedule: Schedule;
+  /** The tasks due on a day of your round, in their own order — every
+   * question about "the whole day" asks this, never `tasks`. Empty on a rest
+   * day. */
+  tasksOn: (day: number) => ChallengeTask[];
+  /** `tasksOn(currentDay)`: what Tasks shows and today's ring counts. */
+  todayTasks: ChallengeTask[];
 
   /** 1-indexed, clamped to the challenge length. */
   currentDay: number;
@@ -195,7 +205,7 @@ export interface ChallengeInput {
   description: string;
   category?: ChallengeCategory;
   photos: readonly TaskPhoto[];
-  tasks: readonly { id?: string; label: string; note?: string }[];
+  tasks: readonly { id?: string; label: string; note?: string; perWeek?: number }[];
   days: number;
   startDate: Date;
   lives: number;
@@ -210,11 +220,11 @@ interface AppActions {
 
   /**
    * Signs the pledge: joins the round of challenge `id` that starts on
-   * `startDate`, with the reminders picked while joining, and loads it as
-   * yours. Rejects with the server's reason — most likely that the round
-   * has already started.
+   * `startDate`, with the reminders and weekdays picked while joining, and
+   * loads it as yours. Rejects with the server's reason — most likely that
+   * the round has already started.
    */
-  selectChallenge: (id: string, startDate?: Date, reminders?: Reminders) => Promise<void>;
+  selectChallenge: (id: string, startDate?: Date, reminders?: Reminders, schedule?: Schedule) => Promise<void>;
   /** Settings' End challenge: leaves the round you're in. */
   leaveChallenge: () => Promise<void>;
   /** Loads everything from the server again. */
@@ -296,6 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [captions, setCaptions] = useState<Record<number, string>>({});
   const [postsAt, setPostsAt] = useState<Record<number, number>>({});
   const [reminders, setRemindersState] = useState<Reminders>(DEFAULT_REMINDERS);
+  const [schedule, setSchedule] = useState<Schedule>({});
 
   const { session } = useSession();
   const userId = session?.user.id ?? null;
@@ -349,14 +360,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCaptions({});
         setPostsAt({});
         setRemindersState(DEFAULT_REMINDERS);
+        setSchedule({});
         return;
       }
 
       const { membership, round, challenge: row, completions, captions: savedCaptions } = mine;
       const appTaskId = (t: api.TaskRow) => t.key ?? t.id;
-      const tasksNow: ChallengeTask[] = mine.tasks.map((t) =>
-        t.note ? { id: appTaskId(t), label: t.label, note: t.note } : { id: appTaskId(t), label: t.label },
-      );
+      const tasksNow: ChallengeTask[] = mine.tasks.map((t) => ({
+        id: appTaskId(t),
+        label: t.label,
+        ...(t.note ? { note: t.note } : {}),
+        ...(t.per_week < 7 ? { perWeek: t.per_week } : {}),
+      }));
       const preset = row.slug ? challengeById(row.slug) : null;
       const built: Challenge = {
         id: row.slug ?? row.id,
@@ -378,6 +393,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Every photo of the run so far, signed in one call. Your own are
       // always yours to see, so none come back missing.
       const byUuid = Object.fromEntries(mine.tasks.map((t) => [t.id, appTaskId(t)]));
+      // The server keeps the picks by uuid; the app keys tasks its own way.
+      const picks = membership.schedule as Record<string, number[]>;
+      const scheduleNow: Schedule = Object.fromEntries(
+        Object.entries(picks).flatMap(([uuid, days]) => (byUuid[uuid] ? [[byUuid[uuid], days]] : [])),
+      );
       const urls = await signedUrls(completions.flatMap((c) => [c.photo_path, c.thumb_path]));
       const loaded: Progress = {};
       for (const c of completions) {
@@ -408,6 +428,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCaptions(savedCaptions);
       setPostsAt(mine.postsAt);
       setRemindersState(membership.reminders as unknown as Reminders);
+      setSchedule(scheduleNow);
     },
     [],
   );
@@ -493,19 +514,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [today, startDate],
   );
 
+  const tasksOn = useCallback(
+    (day: number) => dueOn(tasks, schedule, startDate, day),
+    [tasks, schedule, startDate],
+  );
+  const todayTasks = useMemo(() => tasksOn(currentDay), [tasksOn, currentDay]);
+
   /**
    * Only days that are fully behind you can be missed — today is still open
    * however little of it is ticked, which is why the walk stops short of
-   * `currentDay` rather than including it.
+   * `currentDay` rather than including it. A rest day has nothing due, so
+   * it never is.
    */
   const missedDays = useMemo(() => {
     let missed = 0;
     for (let day = 1; day < currentDay; day += 1) {
       const rows = progress[day];
-      if (!tasks.every((t) => rows?.[t.id]?.done)) missed += 1;
+      if (!tasksOn(day).every((t) => rows?.[t.id]?.done)) missed += 1;
     }
     return missed;
-  }, [progress, currentDay, tasks]);
+  }, [progress, currentDay, tasksOn]);
 
   // Floored rather than left negative: past the allowance the challenge is
   // lost, and how far past says nothing more than that.
@@ -526,7 +554,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [progress, currentDay],
   );
 
-  const feedLocked = inChallenge && daysUntilStart === 0 && !hasPhotographedTask;
+  // A rest day has nothing to photograph, so nothing to prove.
+  const feedLocked = inChallenge && daysUntilStart === 0 && todayTasks.length > 0 && !hasPhotographedTask;
 
   // -- actions ---------------------------------------------------------------
 
@@ -581,14 +610,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const selectChallenge = useCallback(
-    async (id: string, start?: Date, picked?: Reminders) => {
+    async (id: string, start?: Date, picked?: Reminders, days?: Schedule) => {
       // The round its page showed — the one the pledge was read against.
       const listing = catalog.find((l) => l.key === id);
       const day = start ? isoDay(start) : null;
       if (!listing || (day && listing.section.startDate !== day)) {
         throw new Error('That round isn’t open to join any more.');
       }
-      await api.joinRound(listing.section.roundId, picked ?? reminders);
+      await api.joinRound(listing.section.roundId, picked ?? reminders, days ?? {});
       await reload();
     },
     [catalog, reminders, reload],
@@ -753,7 +782,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // the server's own time takes over once the save lands.
       const finishes =
         postsAtRef.current[target] === undefined &&
-        tasks.every((task) => task.id === taskId || progressRef.current[target]?.[task.id]?.done);
+        tasksOn(target).every((task) => task.id === taskId || progressRef.current[target]?.[task.id]?.done);
       if (finishes) putPostsAt(target, Date.now() + POST_COUNTDOWN_MS);
       if (!saving) return;
 
@@ -777,7 +806,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setSyncError(e instanceof Error ? e.message : 'Your photo didn’t save. Try again.');
         });
     },
-    [currentDay, tasks, putEntry, putPostsAt, dayIsUp],
+    [currentDay, tasksOn, putEntry, putPostsAt, dayIsUp],
   );
 
   /** The other half of that bargain: the tick goes, and the proof goes with
@@ -896,6 +925,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Only this phone's copy: a reset happens on logging out, and the
     // account keeps its reminders for the next sign-in.
     setRemindersState(DEFAULT_REMINDERS);
+    setSchedule({});
     membershipId.current = null;
     taskUuids.current = {};
     avatarPath.current = null;
@@ -916,6 +946,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       catalog,
       customChallenges,
       reminders,
+      schedule,
+      tasksOn,
+      todayTasks,
       currentDay,
       livesTotal,
       livesLeft,
@@ -952,7 +985,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       profile, challenge, tasks, startDate, totalDays,
       progress, captions, postsAt,
-      catalog, customChallenges, reminders,
+      catalog, customChallenges, reminders, schedule, tasksOn, todayTasks,
       currentDay, livesLeft, hasPhotographedTask, feedLocked, inChallenge, membershipIdState, daysUntilStart, ready,
       loadFailed, syncError, clearSyncError, avatarError, clearAvatarError,
       setName, setBio, setHandle, setAvatarSeed, setAvatarPhoto, selectChallenge, leaveChallenge,
@@ -975,17 +1008,17 @@ export function useApp(): AppContextValue {
 /** Re-exported where the screens already reach for it. */
 export { orderBySlot };
 
-/** Progress for one day in its grid's order, defaulted so callers never deal
- * with undefined. */
+/** Progress for one day in its grid's order — only the tasks due that day —
+ * defaulted so callers never deal with undefined. */
 export function useDayProgress(day: number) {
-  const { progress, tasks } = useApp();
+  const { progress, tasksOn } = useApp();
   return useMemo(() => {
     const map = progress[day] ?? {};
-    return orderBySlot(tasks, map).map((task) => ({
+    return orderBySlot(tasksOn(day), map).map((task) => ({
       task,
       ...(map[task.id] ?? { done: false, photoSeed: null }),
     }));
-  }, [progress, day, tasks]);
+  }, [progress, day, tasksOn]);
 }
 
 /** Every day so far with at least one photographed task, most recent first —

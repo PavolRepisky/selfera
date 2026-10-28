@@ -8,10 +8,11 @@ import { SettingsGroup, SettingsList } from '@/components/SettingsList';
 import { Text } from '@/components/Text';
 import { colors, layout, radii, spacing } from '@/constants/theme';
 import { DEFAULT_TASK_REMINDER, useApp } from '@/hooks/useAppState';
+import { EVERY_DAY, taskWeekdays, weekdaysLabel } from '@/lib/schedule';
 
 /** What each group's reminder does, said under it, so a time is never a
  * guess at when it comes or whether it comes at all. */
-const TASKS_NOTE = 'A nudge at this time if the task has no photo yet.';
+const TASKS_NOTE = 'A nudge at this time on its days, if the task has no photo yet.';
 const LAST_CALL_NOTE = 'Only comes while a task is still missing today.';
 
 /**
@@ -21,7 +22,12 @@ const LAST_CALL_NOTE = 'Only comes while a task is still missing today.';
  * as it's made, so there's nothing to save: back is done.
  */
 export default function RemindersScreen() {
-  const { tasks, reminders, setReminders } = useApp();
+  const { tasks, schedule, reminders, setReminders } = useApp();
+
+  // A task done a few times a week names its days under it: it only nudges
+  // on those.
+  const daysOf = (task: (typeof tasks)[number]) =>
+    (task.perWeek ?? EVERY_DAY) < EVERY_DAY ? weekdaysLabel(taskWeekdays(task, schedule)) : undefined;
 
   const reminderFor = (taskId: string) =>
     taskId in reminders.tasks ? reminders.tasks[taskId] : DEFAULT_TASK_REMINDER;
@@ -43,6 +49,7 @@ export default function RemindersScreen() {
             <ReminderListRow
               key={task.id}
               label={task.label}
+              hint={daysOf(task)}
               value={reminderFor(task.id)}
               onChange={(at) => setReminderFor(task.id, at)}
             />
@@ -70,6 +77,7 @@ export default function RemindersScreen() {
             <ReminderRow
               key={task.id}
               label={task.label}
+              hint={daysOf(task)}
               value={reminderFor(task.id)}
               onChange={(at) => setReminderFor(task.id, at)}
               open={editing === task.id}

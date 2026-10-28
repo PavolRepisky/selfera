@@ -60,6 +60,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { IconButton } from '@/components/IconButton';
 import { PhotoLibrarySheet } from '@/components/PhotoLibrarySheet';
 import { PhotoSlot } from '@/components/PhotoSlot';
+import { PopoverMenu } from '@/components/PopoverMenu';
 import { Pill, pillHeights } from '@/components/Pill';
 import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -84,6 +85,7 @@ import { useSocial } from '@/hooks/useSocial';
 import { inviteToRound } from '@/lib/backend/catalog';
 import { addDays, longDate } from '@/lib/format';
 import { DAY_MS, localDay, roundState, startOfToday } from '@/lib/round';
+import { EVERY_DAY, perWeekLabel } from '@/lib/schedule';
 
 /** The photos that stand for a challenge everywhere else — its strip on
  * Discover and on its preview are drawn from these. Three fill the cover
@@ -125,12 +127,6 @@ const DEFAULT_DAYS = 75;
  * short enough that the wheel stays a quick flick. */
 const START_WINDOW_DAYS = 90;
 
-/** How long the default start leaves a new challenge open to join before
- * Day 1. Only the default: today can be picked too, since joining stays open
- * through Day 1 itself. */
-const JOIN_WINDOW_DAYS = 7;
-
-const MONDAY = 1;
 
 /** Lives on offer: none (no misses at all) up to a generous five. */
 const LIFE_OPTIONS = [0, 1, 2, 3, 4, 5];
@@ -173,14 +169,13 @@ interface DraftTask {
   id: string;
   label: string;
   note: string;
+  /** Times a week, 7 for every day. */
+  perWeek: number;
 }
 
-/** The first Monday at least a week out: a week for friends to join, and
- * every challenge's Day 1 lands at the start of a week. */
-function defaultStartOffset(today: Date): number {
-  const weekOut = addDays(today, JOIN_WINDOW_DAYS).getDay();
-  return JOIN_WINDOW_DAYS + ((MONDAY - weekOut + 7) % 7);
-}
+/** How often a task can be asked for, most first: every day down to once a
+ * week. Everyone joining picks which days. */
+const PER_WEEK_OPTIONS = [7, 6, 5, 4, 3, 2, 1];
 
 /** Days from today to a challenge's Day 1 — what the start wheel counts in. */
 function offsetTo(today: Date, start: Date): number {
@@ -235,14 +230,18 @@ export default function CreateChallengeScreen() {
   // ones carried over from the ones added.
   const [tasks, setTasks] = useState<DraftTask[]>(() =>
     editing
-      ? editing.tasks.map((t) => ({ id: t.id, label: t.label, note: t.note ?? '' }))
-      : [{ id: 'draft-task-0', label: '', note: '' }],
+      ? editing.tasks.map((t) => ({ id: t.id, label: t.label, note: t.note ?? '', perWeek: t.perWeek ?? EVERY_DAY }))
+      : [{ id: 'draft-task-0', label: '', note: '', perWeek: EVERY_DAY }],
   );
+  /** The drawn form's how-often menu: which task it's for, and where the
+   * tap that opened it landed, to hang the menu under. */
+  const [often, setOften] = useState<{ taskId: string; top: number } | null>(null);
+  const touchY = useRef(0);
   const [focusedTask, setFocusedTask] = useState<string | null>(null);
+  // A fresh draft starts today — the soonest an era can, and its first
+  // members still join until that midnight — and the wheel moves it later.
   const [startOffset, setStartOffset] = useState(() =>
-    editing?.startDate
-      ? Math.max(0, offsetTo(today, localDay(editing.startDate)))
-      : defaultStartOffset(today),
+    editing?.startDate ? Math.max(0, offsetTo(today, localDay(editing.startDate))) : 0,
   );
   const [pendingOffset, setPendingOffset] = useState(startOffset);
   const [startOpen, setStartOpen] = useState(false);
@@ -290,7 +289,7 @@ export default function CreateChallengeScreen() {
     setTasks((list) =>
       list.length >= MAX_TASKS
         ? list
-        : [...list, { id: `draft-task-${list.length}-${Date.now()}`, label, note: '' }],
+        : [...list, { id: `draft-task-${list.length}-${Date.now()}`, label, note: '', perWeek: EVERY_DAY }],
     );
 
   const updateTask = (id: string, patch: Partial<DraftTask>) =>
@@ -329,6 +328,7 @@ export default function CreateChallengeScreen() {
       ...(kept.has(t.id) ? { id: t.id } : null),
       label: t.label.trim(),
       ...(t.note.trim() ? { note: t.note.trim() } : null),
+      ...(t.perWeek < EVERY_DAY ? { perWeek: t.perWeek } : null),
     })),
     days,
     startDate,
@@ -491,7 +491,7 @@ export default function CreateChallengeScreen() {
             <>
               <SettingsGroup
                 title="Tasks"
-                footer={`Each task is proven with one photo. Add a line so everyone does it the same way. Swipe left to remove one. Up to ${MAX_TASKS}.`}
+                footer={`Each task is proven with one photo. Add a line so everyone does it the same way, and how often — for less than every day, everyone picks their own days when they join. Swipe left to remove one. Up to ${MAX_TASKS}.`}
               >
                 {tasks.map((task, i) => (
                   <NativeTaskRow
@@ -743,8 +743,8 @@ export default function CreateChallengeScreen() {
         {step === 2 ? (
           <>
             <Question
-              title="What will everyone do each day?"
-              hint="Each task is proven with one photo. Add a line so everyone does it the same way."
+              title="What will everyone do?"
+              hint="Each task is proven with one photo. Add a line so everyone does it the same way, and how often — for less than every day, everyone picks their own days when they join."
             />
 
             <View style={styles.taskList}>
@@ -775,6 +775,23 @@ export default function CreateChallengeScreen() {
                         multiline
                         style={styles.noteInput}
                       />
+                      {/* The touch's height on screen is caught on the way
+                          down, so the menu can open just under the finger. */}
+                      <View
+                        style={styles.oftenPill}
+                        onTouchStart={(e) => {
+                          touchY.current = e.nativeEvent.pageY;
+                        }}
+                      >
+                        <Pill
+                          label={perWeekLabel(task.perWeek)}
+                          icon="repeat"
+                          trailingIcon="chevron-down"
+                          tone="outline"
+                          size="sm"
+                          onPress={() => setOften({ taskId: task.id, top: touchY.current + layout.block })}
+                        />
+                      </View>
                     </View>
                     <IconButton
                       name="close"
@@ -968,6 +985,7 @@ export default function CreateChallengeScreen() {
         onDismiss={() => setActiveSlot(null)}
       />
 
+
       {/* The start day on the iPhone's own date-wheel drum, the way My
           Profile picks a year. Done sets it; tapping away leaves it. */}
       <BottomSheet visible={startOpen} onDismiss={() => setStartOpen(false)}>
@@ -1020,6 +1038,19 @@ export default function CreateChallengeScreen() {
         days={days}
         startDate={startDate}
         onConfirm={setDays}
+      />
+
+      <PopoverMenu
+        visible={often !== null}
+        onDismiss={() => setOften(null)}
+        top={often?.top ?? 0}
+        items={PER_WEEK_OPTIONS.map((n) => ({
+          label: perWeekLabel(n),
+          checked: tasks.find((t) => t.id === often?.taskId)?.perWeek === n,
+          onPress: () => {
+            if (often) updateTask(often.taskId, { perWeek: n });
+          },
+        }))}
       />
     </View>
   );
@@ -1147,6 +1178,7 @@ function NativeTaskRow({
   onChange: (patch: Partial<DraftTask>) => void;
   onDelete: () => void;
 }) {
+  const scheme = colorsFor(useColorScheme());
   const label = useNativeState(task.label);
   const note = useNativeState(task.note);
   // A suggestion can fill a blank row from outside the field; what was typed
@@ -1180,6 +1212,20 @@ function NativeTaskRow({
             foregroundStyle({ type: 'hierarchical', style: 'secondary' }),
           ]}
         />
+        {/* How often, as the Lives row sets its count: the system's menu
+            picker, its value in the accent. */}
+        <Picker
+          label="How often"
+          selection={task.perWeek}
+          onSelectionChange={(n: number) => onChange({ perWeek: n })}
+          modifiers={[pickerStyle('menu'), tint(scheme.systemAccent)]}
+        >
+          {PER_WEEK_OPTIONS.map((n) => (
+            <SystemText key={n} modifiers={[tag(n)]}>
+              {perWeekLabel(n)}
+            </SystemText>
+          ))}
+        </Picker>
       </VStack>
       <SwipeActions.Actions edge="trailing">
         <Button role="destructive" label="Delete" systemImage="trash" onPress={onDelete} />
@@ -1520,6 +1566,11 @@ const styles = StyleSheet.create({
     ...typeScale.meta,
     color: colors.inkMuted,
     padding: 0,
+  },
+  // Its own size rather than the row's width: a chip naming one setting.
+  oftenPill: {
+    alignSelf: 'flex-start',
+    marginTop: layout.line,
   },
   // An outline rather than a fill: it's where the next row will go, not a
   // row yet.

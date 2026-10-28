@@ -6,6 +6,7 @@ import { publicUrl, signedUrls } from '@/lib/backend/photos';
 import { supabase } from '@/lib/supabase';
 import { timeStamp } from '@/lib/format';
 import { DAY_MS, localDay, startOfToday } from '@/lib/round';
+import { tasksOn, type Schedule } from '@/lib/schedule';
 
 /**
  * Everyone else: the people on the Community tab, a friend's profile and
@@ -68,6 +69,43 @@ async function myId(): Promise<string> {
 
 const face = (path: string | null) => (path ? { uri: publicUrl('avatars', path) } : null);
 
+/** One member's day on their round's calendar: their picked weekdays, Day 1,
+ * and which day. */
+interface DayOf {
+  schedule: Schedule;
+  start: Date;
+  day: number;
+}
+
+/** The ids of the tasks due for a member on one day of their round. */
+function dueTaskIds(tasks: readonly Row<'challenge_tasks'>[], { schedule, start, day }: DayOf): string[] {
+  return tasksOn(
+    tasks.map((t) => ({ id: t.id, perWeek: t.per_week })),
+    schedule,
+    start,
+    day,
+  ).map((t) => t.id);
+}
+
+/**
+ * The rest days of a run up to `lastDay` with nothing of theirs on them, as
+ * empty records: a profile counts them as kept, so a streak runs through a
+ * week's off days rather than breaking on each one.
+ */
+function restDays(
+  tasks: readonly Row<'challenge_tasks'>[],
+  schedule: Schedule,
+  start: Date,
+  lastDay: number,
+  taken: ReadonlySet<number>,
+): DayRecord[] {
+  const rest: DayRecord[] = [];
+  for (let day = 1; day <= lastDay; day += 1) {
+    if (!taken.has(day) && dueTaskIds(tasks, { schedule, start, day }).length === 0) rest.push({ day, tasks: [] });
+  }
+  return rest;
+}
+
 /**
  * A day's checklist from its completions: every task in the order its grid
  * draws them, done ones with their time and photo. Thumbnails stand in for
@@ -75,11 +113,16 @@ const face = (path: string | null) => (path ? { uri: publicUrl('avatars', path) 
  * the full shot.
  */
 function dayTasks(
-  tasks: readonly Row<'challenge_tasks'>[],
+  allTasks: readonly Row<'challenge_tasks'>[],
   completions: readonly Row<'task_completions'>[],
   urls: Record<string, string>,
+  when: DayOf,
 ): Friend['tasks'] {
   const byTask = new Map(completions.map((c) => [c.task_id, c]));
+  // Only what was theirs to do that day: the tasks due for them, and any
+  // photo that's in whatever the schedule says now.
+  const due = new Set(dueTaskIds(allTasks, when));
+  const tasks = allTasks.filter((t) => due.has(t.id) || byTask.has(t.id));
   const progress = Object.fromEntries(
     completions.map((c) => [c.task_id, { done: true, slot: c.slot ?? undefined }]),
   );
@@ -116,16 +159,24 @@ export async function fetchToday(scope: 'friends' | 'members'): Promise<{
   const mids = rows.map((r) => r.membership_id);
   const challengeIds = [...new Set(rows.map((r) => r.challenge_id))];
   const days = [...new Set(rows.map((r) => r.day))];
-  const [challenges, tasks, completions, reactions, mutuals] = await Promise.all([
+  const [challenges, tasks, completions, reactions, mutuals, memberships] = await Promise.all([
     supabase.from('challenges').select('id, slug, name').in('id', challengeIds),
     supabase.from('challenge_tasks').select('*').in('challenge_id', challengeIds).order('position'),
     supabase.from('task_completions').select('*').in('membership_id', mids).in('day', days),
     supabase.from('reactions').select('membership_id, day, emoji').in('membership_id', mids).in('day', days),
     // Only members are strangers; a friend's mutuals aren't what the tab says.
     scope === 'members' ? mutualCounts(rows.map((r) => r.user_id)) : Promise.resolve(new Map<string, number>()),
+    // Each one's picked weekdays and Day 1, for which of their tasks today holds.
+    supabase.from('memberships').select('id, schedule, round:rounds(start_date)').in('id', mids),
   ]);
 
   const todayOf = new Map(rows.map((r) => [r.membership_id, r.day]));
+  const calendarOf = new Map(
+    must(memberships).map((m) => [
+      m.id,
+      { schedule: m.schedule as Schedule, start: localDay(m.round?.start_date ?? '') },
+    ]),
+  );
   const shots = must(completions).filter((c) => todayOf.get(c.membership_id) === c.day);
   const urls = await signedUrls(shots.flatMap((c) => [c.photo_path, c.thumb_path]));
   const challengeById = new Map(must(challenges).map((c) => [c.id, c]));
@@ -162,6 +213,7 @@ export async function fetchToday(scope: 'friends' | 'members'): Promise<{
         allTasks.filter((t) => t.challenge_id === r.challenge_id),
         shots.filter((c) => c.membership_id === r.membership_id),
         urls,
+        { ...(calendarOf.get(r.membership_id) ?? { schedule: {}, start: startOfToday() }), day: r.day },
       ),
     };
   });
@@ -266,7 +318,12 @@ export async function fetchPastRuns(userId: string): Promise<PastRun[]> {
       const captionOf = new Map(
         allCaptions.filter((c) => c.membership_id === m.id).map((c) => [c.day, c.caption]),
       );
-      const dayNumbers = [...new Set(mine.map((c) => c.day))].sort((a, b) => b - a);
+      const dayNumbers = [...new Set(mine.map((c) => c.day))];
+      const schedule = m.schedule as Schedule;
+      const lastDay =
+        m.status === 'finished'
+          ? round.days
+          : Math.min(Math.max(dayOfRound(startDate, ended), 1), round.days);
       return {
         membershipId: m.id,
         challenge: { id: challenge.slug ?? challenge.id, name: challenge.name },
@@ -274,19 +331,19 @@ export async function fetchPastRuns(userId: string): Promise<PastRun[]> {
         startDate,
         totalDays: round.days,
         taskCount: tasks.length,
-        lastDay:
-          m.status === 'finished'
-            ? round.days
-            : Math.min(Math.max(dayOfRound(startDate, ended), 1), round.days),
+        lastDay,
         dayToday: dayOfRound(startDate, today),
-        days: dayNumbers.map((day) => ({
-          day,
-          caption: captionOf.get(day),
-          tasks: dayTasks(tasks, mine.filter((c) => c.day === day), urls),
-        })),
+        days: [
+          ...dayNumbers.map((day) => ({
+            day,
+            caption: captionOf.get(day),
+            tasks: dayTasks(tasks, mine.filter((c) => c.day === day), urls, { schedule, start: startDate, day }),
+          })),
+          ...restDays(tasks, schedule, startDate, lastDay, new Set(dayNumbers)),
+        ].sort((a, b) => b.day - a.day),
       };
     })
-    .filter((run) => run.days.length > 0)
+    .filter((run) => run.days.some((record) => record.tasks.some((task) => task.done)))
     .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 }
 
@@ -368,11 +425,17 @@ export async function fetchPerson(userId: string): Promise<PersonPage> {
   const dayNumbers = [...new Set([...all.map((c) => c.day), ...(started ? [today] : [])])].sort(
     (a, b) => b - a,
   );
-  const days = dayNumbers.map((day) => ({
-    day,
-    caption: captionOf.get(day),
-    tasks: dayTasks(tasks, all.filter((c) => c.day === day), urls),
-  }));
+  const schedule = m.schedule as Schedule;
+  const start = localDay(round.start_date);
+  const days = [
+    ...dayNumbers.map((day) => ({
+      day,
+      caption: captionOf.get(day),
+      tasks: dayTasks(tasks, all.filter((c) => c.day === day), urls, { schedule, start, day }),
+    })),
+    // Rest days behind them; today is already in the list above.
+    ...(started ? restDays(tasks, schedule, start, today - 1, new Set(dayNumbers)) : []),
+  ].sort((a, b) => b.day - a.day);
 
   person.day = today;
   person.membershipId = m.id;

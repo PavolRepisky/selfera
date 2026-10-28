@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SignaturePad } from '@/components/SignaturePad';
 import { StepBar } from '@/components/StepBar';
 import { Text } from '@/components/Text';
+import { WeekdayPicker } from '@/components/WeekdayPicker';
 import { colors, layout, radii, tabBarBottom } from '@/constants/theme';
 import {
   DEFAULT_TASK_REMINDER,
@@ -21,6 +22,7 @@ import { useChallengeListing } from '@/hooks/useChallengeCards';
 import { addDays, fullDate, longDate, ordinal } from '@/lib/format';
 import { askForNotifications } from '@/lib/reminders';
 import { localDay } from '@/lib/round';
+import { EVERY_DAY, perWeekLabel, weekdaysLabel } from '@/lib/schedule';
 
 /** The tick leading each line of the pledge. */
 const PLEDGE_TICK_SIZE = 18;
@@ -45,6 +47,7 @@ export default function JoinScreen() {
     selectChallenge,
     profile,
     reminders,
+    schedule,
     inChallenge,
     challenge: current,
     currentDay,
@@ -80,6 +83,17 @@ export default function JoinScreen() {
     ),
   );
   const [lastCall, setLastCall] = useState<number | null>(reminders.lastCall);
+
+  // The days for each task that isn't daily, picked here and nowhere else:
+  // they're part of the pledge, so nothing picks them for you. Signing the
+  // same era again before Day 1 starts from the days already picked.
+  const weekly = challenge.tasks.filter((task) => (task.perWeek ?? EVERY_DAY) < EVERY_DAY);
+  const [days, setDays] = useState<Record<string, number[]>>(() =>
+    inChallenge && current.id === section.id
+      ? Object.fromEntries(weekly.map((task) => [task.id, [...(schedule[task.id] ?? [])]]))
+      : {},
+  );
+  const daysPicked = weekly.every((task) => (days[task.id]?.length ?? 0) === task.perWeek);
   /** The one row whose wheel is out — a task's id, or `lastCall`. */
   const [editing, setEditing] = useState<string | null>(null);
   const toggle = (key: string) => setEditing((current) => (current === key ? null : key));
@@ -123,28 +137,53 @@ export default function JoinScreen() {
         {step === 1 ? (
           <>
             <View style={styles.question}>
-              <Text variant="pageTitle">When should we remind you?</Text>
+              <Text variant="pageTitle">
+                {weekly.length ? 'When will you do them?' : 'When should we remind you?'}
+              </Text>
               <Text variant="copy" color={colors.inkMuted}>
-                Pick a time for each task, or Never if you don't need a nudge.
+                {weekly.length
+                  ? "Pick your days for each task that isn't every day, and a time to be nudged — or Never."
+                  : "Pick a time for each task, or Never if you don't need a nudge."}
               </Text>
             </View>
 
             {/* Each pill opens its wheel under its row, the way Settings sets
-                them, and the last call closes the list. */}
+                them, and the last call closes the list. A task that isn't
+                daily carries its week under its row: the days are the
+                question, the time only follows them. */}
             <View>
-              {challenge.tasks.map((task) => (
-                <ReminderRow
-                  key={task.id}
-                  label={task.label}
-                  hint={task.note}
-                  strong
-                  value={taskTimes[task.id] ?? null}
-                  onChange={(at) => setTaskTimes((times) => ({ ...times, [task.id]: at }))}
-                  open={editing === task.id}
-                  onToggle={() => toggle(task.id)}
-                  divider
-                />
-              ))}
+              {challenge.tasks.map((task) => {
+                const perWeek = task.perWeek ?? EVERY_DAY;
+                const picked = days[task.id] ?? [];
+                return (
+                  <ReminderRow
+                    key={task.id}
+                    label={task.label}
+                    hint={task.note}
+                    strong
+                    value={taskTimes[task.id] ?? null}
+                    onChange={(at) => setTaskTimes((times) => ({ ...times, [task.id]: at }))}
+                    open={editing === task.id}
+                    onToggle={() => toggle(task.id)}
+                    divider
+                  >
+                    {perWeek < EVERY_DAY ? (
+                      <>
+                        <Text variant="meta" color={colors.inkMuted}>
+                          {picked.length === perWeek
+                            ? `${perWeekLabel(perWeek)} · ${weekdaysLabel(picked)}`
+                            : `${perWeekLabel(perWeek)} · pick ${perWeek - picked.length} more`}
+                        </Text>
+                        <WeekdayPicker
+                          value={picked}
+                          count={perWeek}
+                          onChange={(next) => setDays((all) => ({ ...all, [task.id]: next }))}
+                        />
+                      </>
+                    ) : null}
+                  </ReminderRow>
+                );
+              })}
               <ReminderRow
                 label="Last call"
                 hint="Only if a task is still missing, so you don't lose a life."
@@ -181,10 +220,17 @@ export default function JoinScreen() {
                 For {totalDays} days, from {longDate(start)} to {longDate(end)}
               </PledgeLine>
               <PledgeLine>
-                {challenge.tasks.length === 1
-                  ? 'A photo of the task, every day, before midnight'
-                  : `A photo of all ${challenge.tasks.length} tasks, every day, before midnight`}
+                {weekly.length
+                  ? 'A photo of each task on its days, before midnight'
+                  : challenge.tasks.length === 1
+                    ? 'A photo of the task, every day, before midnight'
+                    : `A photo of all ${challenge.tasks.length} tasks, every day, before midnight`}
               </PledgeLine>
+              {weekly.map((task) => (
+                <PledgeLine key={task.id}>
+                  {task.label} on {weekdaysLabel(days[task.id] ?? [], ', ')}
+                </PledgeLine>
+              ))}
               <PledgeLine>
                 {lives === 0
                   ? 'No lives — one missed day ends my run'
@@ -218,7 +264,7 @@ export default function JoinScreen() {
           </Text>
         ) : null}
         {step === 1 ? (
-          <PrimaryButton label="Continue" onPress={() => setStep(2)} />
+          <PrimaryButton label="Continue" disabled={!daysPicked} onPress={() => setStep(2)} />
         ) : (
           <PrimaryButton
             label={joining ? 'Joining…' : 'Sign & join'}
@@ -229,10 +275,12 @@ export default function JoinScreen() {
               try {
                 // The reminders go in with the signature, onto the new
                 // membership — not onto the challenge being left.
-                await selectChallenge(section.id, start, {
-                  tasks: { ...reminders.tasks, ...taskTimes },
-                  lastCall,
-                });
+                await selectChallenge(
+                  section.id,
+                  start,
+                  { tasks: { ...reminders.tasks, ...taskTimes }, lastCall },
+                  days,
+                );
                 // The reminders just picked only fire with the phone's say-so —
                 // asked now, the moment they start to mean something.
                 await askForNotifications().catch(() => false);
