@@ -1,6 +1,6 @@
 import { Allura_400Regular } from '@expo-google-fonts/allura';
 import { InclusiveSans_700Bold } from '@expo-google-fonts/inclusive-sans';
-import { InterTight_400Regular, InterTight_500Medium, InterTight_600SemiBold } from '@expo-google-fonts/inter-tight';
+import { InterTight_600SemiBold } from '@expo-google-fonts/inter-tight';
 import {
   Quicksand_500Medium,
   Quicksand_600SemiBold,
@@ -34,8 +34,6 @@ export default function RootLayout() {
     Quicksand_600SemiBold,
     Quicksand_700Bold,
     Allura_400Regular,
-    InterTight_400Regular,
-    InterTight_500Medium,
     InterTight_600SemiBold,
     InclusiveSans_700Bold,
   });

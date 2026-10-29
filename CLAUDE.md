@@ -289,19 +289,21 @@ padding:
   captions, and the `headline`/`headlineSm`/`title` scale (Bold). The app has
   no separate display face — Playfair was removed on purpose; don't add a
   serif back for headlines.
-- **Allura** — the "Day N/75" written across the middle of a `DayCover`
-  (`coverDay`). **Inter Tight** — the rest of that cover: the era name
-  under the day (`coverEra`), the faint lower-case "selfera.app" wordmark at its foot (`coverMark`, in
-  Inclusive Sans Bold, set close, drawn by `CoverMark`, which signs each of a
-  post's photo slides the same way),
-  and — only on the saved story, where its switches turn them on — each
-  photo's time and task in its middle (`coverCaption`). Tasks' post and a
-  posted day's own photo slides set the time over
-  the task in Inter Tight Medium (`shotTitle`), centred, in white
-  (`shotStamp`) on a faint drop. Times read
-  "07:57", on the 24-hour clock, everywhere (`clock24` in `lib/format`,
-  which also turns older "7:57am" stamps over). Neither face
-  appears anywhere else.
+- **Inter Tight SemiBold** — the era's name in the dead centre of a
+  `DayCover` (`coverEra`, 18 on screen). **Allura** — "Day N" written small
+  just above it (`coverDay`; no "/75", `SHOW_LENGTH` is off), the two on one
+  soft oval of shade. **Inclusive Sans Bold** — the faint lower-case
+  "selfera.app" wordmark (`coverMark`, set close, drawn by `CoverMark`),
+  only on what's exported from `ShareCoverSheet`: the cover's foot
+  (`DayCover`'s `mark`) and each exported photo slide; inside the app no
+  cover or slide carries it. Each photo's time over its task — Tasks' post,
+  a posted day's photo slides, a story's frames — is Quicksand Bold
+  (`shotTitle`), centred, in white (`shotStamp`) on a faint drop, and
+  Quicksand SemiBold as the small print on the saved story's cover, where
+  its switches turn it on (`coverCaption`). Times read "07:57", on the
+  24-hour clock, everywhere (`clock24` in `lib/format`, which also turns
+  older "7:57am" stamps over). Allura, Inter Tight and Inclusive Sans
+  appear nowhere else.
 
 Quicksand runs optically light, so each role is mapped one step up the weight
 ramp; plain copy sits on Medium, and Regular isn't loaded at all. Don't
@@ -334,7 +336,7 @@ day to post, in a bottom sheet with Story · TikTok · Instagram (a switch each 
 task ring with its "3/5" badge, or round Tasks' shutter — every ring, the profile's
 included; handed a day's `photos` (completion ids) it fades the ones you've
 seen, and `mine` fades them all · `CalendarMonth` month grid · `PhotoCollage` today's post filling in, its open pieces grey cells · `DayCover`
-a day's cover — its photos (each one's time and task in its middle only on the saved story, by its switches), "Day N/75" and the era name on a soft shadow across the centre, "Selfera" faint at the foot — on a post's first slide and as its tile in the profile's grid ·
+a day's cover — its photos (each one's time and task in its middle only on the saved story, by its switches), the era name dead centre with "Day N" small over it on a soft oval of shade, and "selfera.app" faint at the foot only when exported (`mark`) — on a post's first slide and as its tile in the profile's grid ·
 `ShotStamp` a photo's time over its task across its middle, as Tasks' post, a post's photo slides and a story's frames set it ·
 `CameraSheet` the camera card that rises when a task is tapped · `PhotoSlot` · `PhotoStrip`
 a challenge's scattered prints · `PhotoViewer` · `CommentsSheet` ·

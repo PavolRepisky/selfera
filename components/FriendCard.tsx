@@ -23,7 +23,7 @@ import { postKey } from '@/lib/backend/social';
 import { addDays, clock24, relativeDay } from '@/lib/format';
 import { startOfToday } from '@/lib/round';
 import { CommentsSheet, type CommentEntry } from './CommentsSheet';
-import { CoverMark, DayCover, POST_RATIO } from './DayCover';
+import { DayCover, POST_RATIO } from './DayCover';
 import { PostHeader } from './PostHeader';
 import { LOCK_BLUR_RADIUS, LockedOverlay } from './LockedOverlay';
 import { type CollageCell } from './PhotoCollage';
@@ -338,9 +338,6 @@ export function FriendCard({
         {/* When it was shot over what it proves. Not while locked: a
             caption over a blur is a teaser, not a post. */}
         {!locked ? <ShotStamp time={item.time} label={item.label} /> : null}
-        {/* Signed at the foot like the cover before it, so every slide of
-            a post carries the app's name when it's screenshotted alone. */}
-        {locked ? null : <CoverMark width={carouselWidth} />}
       </View>
     );
   };

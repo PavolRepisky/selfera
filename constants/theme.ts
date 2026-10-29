@@ -340,15 +340,9 @@ const QUICKSAND = {
    */
   coverDay: 'Allura_400Regular',
   /**
-   * Inter Tight — the rest of a day's cover but its wordmark: the era's
-   * name under the day and each photo's time — and the time and task on a
-   * post's own photo slides, so they match it. A plain, closely set sans
-   * that stays legible at the cover's very small sizes.
+   * Inter Tight SemiBold — only the era's name in the middle of a day's
+   * cover: a plain, closely set sans that names the run under the script.
    */
-  cover: 'InterTight_400Regular',
-  /** Inter Tight Medium — the time and task on a post's photo slides. */
-  coverMedium: 'InterTight_500Medium',
-  /** Inter Tight SemiBold — the era's name under the day. */
   coverBold: 'InterTight_600SemiBold',
   /** Inclusive Sans Bold — only the "selfera" mark at a cover's foot and
    * a post's photos', so the brand keeps a face of its own; Bold holds it
@@ -571,25 +565,27 @@ export const type = {
   },
   /**
    * A day's cover, set at the cover's own card width and scaled with it.
-   * The day in Allura across the middle — a script runs small for its
-   * size, so it's set well over the size of the era's name.
+   * The day in Allura over the era's name — small, so the name in the
+   * middle leads and the day only marks which one it is, a small line over
+   * it.
    */
   coverDay: {
     fontFamily: fonts.coverDay,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 13,
+    lineHeight: 17,
     // Drawn in, so the script runs as one stroke.
     letterSpacing: -0.75,
   },
-  /** The era's name under the day — set exactly as a post's photo slides
-   * set their time and task (`shotTitle`), so the cover and the slides
-   * after it read as one hand. The cover is laid out 280 wide and scaled
-   * to the phone, so each of `shotTitle`'s numbers is taken down by a
-   * 390pt phone's scale to land at the same size on screen. */
+  /** The era's name in the dead centre of the cover, the day over it — in
+   * the photo slides' face (Inter Tight), so the cover and the slides after
+   * it read as one hand, but a size up and a weight up from their captions,
+   * since on the cover it's the thing named. The cover is laid out 280 wide
+   * and scaled to the phone, so each number is taken down by a 390pt
+   * phone's scale to land at 18 on screen. */
   coverEra: {
-    fontFamily: fonts.coverMedium,
-    fontSize: (14 * 280) / 390,
-    lineHeight: (19 * 280) / 390,
+    fontFamily: fonts.coverBold,
+    fontSize: (18 * 280) / 390,
+    lineHeight: (24 * 280) / 390,
     letterSpacing: (-0.4 * 280) / 390,
   },
   /** Each photo's time, very small, in the middle of every shot. The task
@@ -597,7 +593,9 @@ export const type = {
    * photo is belongs to the photo's own slide. Not pulled in at
    * the body's tracking: this small, a tighter line runs together. */
   coverCaption: {
-    fontFamily: fonts.cover,
+    // Quicksand, as over the photos' own slides; SemiBold, since it runs
+    // light and this small print has to hold over the photos.
+    fontFamily: fonts.bodySemi,
     fontSize: 7.5,
     lineHeight: 10,
     letterSpacing: 0,
@@ -612,12 +610,12 @@ export const type = {
     // Drawn in, so the word sets as one wordmark rather than spelled out.
     letterSpacing: -0.75,
   },
-  /** The time over the task across a posted photo's middle — the cover's
-   * Inter Tight in its Medium, so a post's slides and its cover read as
-   * one set; small, both lines at one size, so it stays a caption over the
-   * shot rather than a headline across it. */
+  /** The time over the task across a posted photo's middle — the app's own
+   * Quicksand, in its Bold since it runs light and the white has to hold
+   * over a busy shot; small, both lines at one size, so it stays a caption
+   * over the shot rather than a headline across it. */
   shotTitle: {
-    fontFamily: fonts.coverMedium,
+    fontFamily: fonts.bodyBold,
     fontSize: 14,
     lineHeight: 19,
     // Drawn in a touch, as a video's typed caption sets.

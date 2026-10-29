@@ -30,8 +30,8 @@ export const POST_RATIO = 3 / 4;
 /** The shade behind the day and era name: a soft oval held close round
  * the two lines, darker at its heart than it was — the reference cover's,
  * which sits tight under its lettering rather than washing the middle. */
-const SHADE_WIDTH = 190;
-const SHADE_HEIGHT = 115;
+const SHADE_WIDTH = 160;
+const SHADE_HEIGHT = 80;
 /** How dark the shade is at its middle — enough to hold white script over a
  * bright photo, fading out before it reads as a patch. */
 const SHADE_OPACITY = 0.85;
@@ -51,10 +51,13 @@ const LETTERING_SHADOW_OFFSET = { width: 0, height: 0.75 };
  * so the same numbers land the same there too. */
 const SLIDE_SHADOW_RADIUS = (4 * COVER_WIDTH) / 390;
 const SLIDE_SHADOW_OFFSET = { width: 0, height: COVER_WIDTH / 390 };
-/** The era's name drawn up under the day: the script's line box leaves
- * room under its letters, and the name reads as the day's own when it
- * sits close. */
+/** The day drawn down onto the era's name: the script's line box leaves
+ * room under its letters, and the name reads as the day's own when the
+ * two sit close. */
 const ERA_DROP = 2;
+/** How far the day sits up from the era's name at the centre: half of each
+ * line, less that drop. */
+const DAY_LIFT = (type.coverDay.lineHeight + type.coverEra.lineHeight) / 2 - ERA_DROP;
 /** "selfera.app" at the foot, held back so it signs the cover without being
  * read before the day. */
 const MARK_OPACITY = 0.6;
@@ -67,6 +70,9 @@ const MARK_INSET = (14 * COVER_WIDTH) / 390;
 const SHOW_DAY = true;
 /** Whether the era's name sits under the day. */
 const SHOW_ERA = true;
+/** Whether the day carries the era's length, "Day 1/75" — off, so the
+ * cover reads "Day 1" alone and the era's name under it says which run. */
+const SHOW_LENGTH = false;
 
 /** Past this many photos a piece is too small to carry its time. */
 const MAX_CAPTIONED = 6;
@@ -114,15 +120,18 @@ export interface DayCoverProps {
   /** Each photo's task under its time — only on a cover made to share,
    * which is seen big enough to read it. */
   tasks?: boolean;
+  /** "selfera.app" at the foot — only on a cover exported to share, where
+   * it says where the post came from; inside the app it's plain. */
+  mark?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 /**
  * A finished day as its cover — the face a day wears in a grid, before it's
  * opened: its photos edge to edge with no seam; across the middle of the
- * cover the day in script over the era's name, on a soft shadow; and
- * "selfera.app", faint, at its foot. A cover made to share can also carry each
- * photo's time, and its task, very small in its middle.
+ * cover the day in script over the era's name, on a soft shadow. A cover
+ * made to share also signs "selfera.app", faint, at its foot, and can carry
+ * each photo's time, and its task, very small in its middle.
  *
  * Laid out at a fixed card width and scaled whole into whatever box it's
  * given, so a tile in any grid is a true miniature of the same cover.
@@ -135,6 +144,7 @@ export function DayCover({
   ratio = 1,
   times = false,
   tasks = false,
+  mark = false,
   style,
 }: DayCoverProps) {
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -186,7 +196,11 @@ export function DayCover({
           />
           {SHOW_DAY && SHOW_SHADE ? (
             <View style={styles.middle}>
-              <Svg width={SHADE_WIDTH} height={SHADE_HEIGHT} style={styles.shade}>
+              <Svg
+                width={SHADE_WIDTH}
+                height={SHADE_HEIGHT}
+                style={[styles.shade, SHOW_ERA && styles.shadeOverPair]}
+              >
                 <Defs>
                   <RadialGradient id="coverShade" cx="50%" cy="50%" rx="50%" ry="50%">
                     <Stop offset="0" stopColor={shade} stopOpacity={SHADE_OPACITY} />
@@ -241,23 +255,29 @@ export function DayCover({
           ) : null}
           {SHOW_DAY ? (
             <View style={styles.middle}>
-              <Text variant="coverDay" color={colors.onMedia} style={styles.letteringShadow}>
-                {totalDays ? `Day ${day}/${totalDays}` : `Day ${day}`}
+              <Text
+                variant="coverDay"
+                color={colors.onMedia}
+                style={[styles.letteringShadow, SHOW_ERA && styles.dayOverEra]}
+              >
+                {SHOW_LENGTH && totalDays ? `Day ${day}/${totalDays}` : `Day ${day}`}
               </Text>
-              {SHOW_ERA ? (
-                <Text
-                  variant="coverEra"
-                  color={colors.onMedia}
-                  numberOfLines={1}
-                  style={[styles.slideShadow, styles.centred, styles.era]}
-                >
-                  {kicker}
-                </Text>
-              ) : null}
+            </View>
+          ) : null}
+          {SHOW_DAY && SHOW_ERA ? (
+            <View style={styles.middle}>
+              <Text
+                variant="coverEra"
+                color={colors.onMedia}
+                numberOfLines={1}
+                style={[styles.slideShadow, styles.centred]}
+              >
+                {kicker}
+              </Text>
             </View>
           ) : null}
 
-          {small ? null : <CoverMark />}
+          {mark && !small ? <CoverMark /> : null}
         </View>
       ) : null}
     </View>
@@ -326,8 +346,16 @@ const styles = StyleSheet.create({
   centred: {
     textAlign: 'center',
   },
-  era: {
-    marginTop: -ERA_DROP,
+  // The era's name holds the cover's dead centre on a layer of its own; the
+  // day is centred too, then lifted by half of each line so it rests on top
+  // of the name, drawn down by the script's spare room under its letters.
+  dayOverEra: {
+    transform: [{ translateY: -DAY_LIFT }],
+  },
+  // The oval held on the middle of the two lines together, not on the name
+  // alone — half the day's lift up from the cover's centre.
+  shadeOverPair: {
+    transform: [{ translateY: -DAY_LIFT / 2 }],
   },
   middle: {
     ...absoluteFill,

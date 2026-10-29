@@ -421,7 +421,7 @@ function SlideImage({ slide, cells, day, totalDays, kicker, ratio, times, tasks 
   if (slide.kind === 'cover') {
     return (
       <View style={[size, styles.slide]}>
-        <DayCover cells={cells} day={day} totalDays={totalDays} kicker={kicker} ratio={ratio} times={times} tasks={tasks} />
+        <DayCover cells={cells} day={day} totalDays={totalDays} kicker={kicker} ratio={ratio} times={times} tasks={tasks} mark />
       </View>
     );
   }
