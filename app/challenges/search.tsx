@@ -6,8 +6,7 @@ import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-n
 import { ChallengeRow, challengeDetail } from '@/components/ChallengeRow';
 import { EmptyState } from '@/components/EmptyState';
 import { Pill } from '@/components/Pill';
-import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';
-import { SearchBar } from '@/components/SearchBar';
+import { NATIVE_HEADER, ScreenScroll } from '@/components/Screen';import { SearchBar } from '@/components/SearchBar';
 import { Text } from '@/components/Text';
 import { colors, colorsFor, layout, spacing } from '@/constants/theme';
 import type { ChallengeCategory } from '@/data/challenges';
@@ -143,6 +142,8 @@ export default function ChallengeSearchScreen() {
               // The same bar every other page has: no fill, the page under it.
               headerTransparent: true,
               headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'systemChromeMaterial',
+              // No scroll-edge blur, as `ScreenHeader` sets every other bar.
+              scrollEdgeEffects: { top: 'hidden' },
               // Bar items and the field's Cancel in the system blue, as on
               // every other page.
               headerTintColor: scheme.systemAccent,

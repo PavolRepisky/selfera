@@ -202,6 +202,11 @@ export function ScreenHeader({
           // The scrollers inset themselves for it.
           headerTransparent: true,
           headerBlurEffect: overPhoto || LIQUID_GLASS ? undefined : 'systemChromeMaterial',
+          // Without the scroll-edge blur too: a later iOS 26 update lays it as
+          // a milky white band behind the bar, status bar included, that greyed
+          // the post's photos under the Tasks title. The title and the glass
+          // buttons stand on the page by themselves.
+          scrollEdgeEffects: { top: 'hidden' },
           // The bar's items — back, its buttons — in the system blue, its
           // title in ink, as plain colours for the appearance on show: the
           // system bar doesn't follow an adaptive one.
