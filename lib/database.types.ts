@@ -153,6 +153,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"friend_request_log": {
+                  Row: {
+                    "addressee_id": string,"requester_id": string,"sent_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "addressee_id": string,"requester_id": string,"sent_at"?: string
+                  }
+                  Update: {
+                    "addressee_id"?: string,"requester_id"?: string,"sent_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "friend_request_log_addressee_id_fkey"
+      columns: ["addressee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "friend_request_log_requester_id_fkey"
+      columns: ["requester_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"friendships": {
                   Row: {
                     "accepted_at": string | null,"addressee_id": string,"created_at": string,"requester_id": string,"status": Database["public"]['Enums']["friendship_status"]
@@ -508,6 +534,9 @@ isOneToOne: false
                            },
 "my_membership_id":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"objects_under":
+{ Args: { "bucket": string,"prefix": string }; Returns: number
                            },
 "owns_membership":
 { Args: { "mid": string }; Returns: boolean

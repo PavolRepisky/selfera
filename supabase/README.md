@@ -60,6 +60,16 @@ npx supabase db push                       # migrations, not the seed
 npx supabase functions deploy delete-account
 ```
 
-Then in the dashboard: Authentication → Providers → enable Apple and Google
-and turn email sign-up off. Under URL Configuration, add `selfera://**` and
-`exp://**` to the redirect URLs.
+Then in the dashboard:
+
+- **Authentication → Providers**: enable Apple and Google. If email sign-up
+  stays on, keep **Confirm email** on, so nobody can take an address that
+  isn't theirs, and set the minimum password length to **8**, which is what
+  the sign-in screen promises.
+- **Authentication → Attack Protection**: turn on CAPTCHA (Turnstile or
+  hCaptcha) once the sign-in screen passes its token.
+- **Authentication → URL Configuration**: add `selfera://**` to the redirect
+  URLs. Add `exp://**` only while testing hosted sign-in in Expo Go, and
+  take it out before release: it lets any Expo Go project be handed a
+  sign-in code. PKCE keeps such a code from being used, but there's no
+  reason to hand it out.

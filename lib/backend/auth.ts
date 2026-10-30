@@ -1,5 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -61,6 +62,11 @@ export async function signInWithApple(): Promise<boolean> {
   if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
     return signInWith('apple');
   }
+  // Apple signs the hash of a one-time value into its token and Supabase
+  // checks it against the value itself, so a token lifted from somewhere
+  // else can't be replayed to sign in.
+  const rawNonce = Crypto.randomUUID();
+  const nonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
   let credential: AppleAuthentication.AppleAuthenticationCredential;
   try {
     credential = await AppleAuthentication.signInAsync({
@@ -68,6 +74,7 @@ export async function signInWithApple(): Promise<boolean> {
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
+      nonce,
     });
   } catch (e) {
     if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return false;
@@ -78,6 +85,7 @@ export async function signInWithApple(): Promise<boolean> {
   const { error } = await supabase.auth.signInWithIdToken({
     provider: 'apple',
     token: credential.identityToken,
+    nonce: rawNonce,
   });
   if (error) throw error;
 
@@ -158,13 +166,16 @@ export async function signInWithEmail(email: string, password: string) {
  * A challenge day runs midnight to midnight where you are, and the server
  * works out which day that is from the zone on your profile — so it's kept
  * up to date with the phone's on every sign-in, and again when you travel.
+ * While you're in an era the server won't take a zone that would move
+ * today's date (that would reopen yesterday), so a flight across midnight
+ * keeps the old zone until the dates agree — never failing the sign-in.
  */
 export async function syncTimezone() {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { data } = await supabase.auth.getUser();
   if (!timezone || !data.user) return;
   const { error } = await supabase.from('profiles').update({ timezone }).eq('id', data.user.id);
-  if (error) throw error;
+  if (error && error.code !== 'P0001') throw error;
 }
 
 /** Ends the session everywhere it's signed in; offline, it still forgets the

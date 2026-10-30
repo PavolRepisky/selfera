@@ -74,6 +74,20 @@ check(!(await julia.c.storage.from('task-photos').remove(undo.data)).error, 'Jul
 
 const anon = createClient(URL, KEY, opts);
 check(((await anon.from('profiles').select('id')).data ?? []).length === 0, 'signed-out reads return nothing');
+check(!!(await anon.rpc('round_standings', { rid: round.id })).error, "signed out, a round's standings are refused");
+
+// The ways around the rules the 2026-10-30 audit found, through the API.
+const dateIn = (timeZone) => new Date().toLocaleDateString('en-CA', { timeZone });
+const farZone = dateIn('Pacific/Kiritimati') !== dateIn('UTC') ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago';
+const moved = await mia.c.from('profiles').update({ timezone: farZone }).eq('id', mia.id);
+check(moved.error?.code === 'P0001', 'in an era, a time zone that moves today is refused');
+const ghost = `${mia.id}/${mm.membership_id}/${mm.current_day}/never-uploaded.jpg`;
+check(!!(await mia.c.rpc('complete_task', { task: tasks[1], photo_path: ghost, thumb_path: ghost })).error,
+  'a task photo that was never uploaded completes nothing');
+check(!!(await julia.c.from('comments').insert({ membership_id: mm.membership_id, day: mm.current_day, author_id: julia.id, body: 'Old', created_at: '2000-01-01' })).error,
+  'a comment cannot pick its own time');
+const weak = await createClient(URL, KEY, opts).auth.signUp({ email: `weak${Date.now()}@test.dev`, password: 'short12' });
+check(weak.error?.code === 'weak_password', 'a password under 8 characters is refused');
 
 const temp = createClient(URL, KEY, opts);
 const { data: su, error: suErr } = await temp.auth.signUp({ email: `gone${Date.now()}@test.dev`, password: 'throwaway-pass-1' });

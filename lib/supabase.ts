@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 
 import type { Database } from '@/lib/database.types';
+import { sessionStore } from '@/lib/sessionStore';
 
 /**
  * The one connection to the backend. The URL and key come from
@@ -22,9 +22,9 @@ if (!url || !key) {
 
 export const supabase = createClient<Database>(url, key, {
   auth: {
-    // The session outlives the app being closed; on the web the browser's
-    // own storage already does that.
-    storage: Platform.OS === 'web' ? undefined : AsyncStorage,
+    // The session outlives the app being closed, kept encrypted on a phone;
+    // on the web the browser's own storage already does that.
+    storage: Platform.OS === 'web' ? undefined : sessionStore,
     persistSession: true,
     autoRefreshToken: true,
     // Sign-in comes back through the app's own link, handled in

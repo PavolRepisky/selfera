@@ -51,6 +51,12 @@ insert into public.task_completions (membership_id, task_id, day, photo_path, th
   ('44444444-0000-4000-8000-00000000000a', '22222222-0000-4000-8000-000000000001', 3, 'x', 'x'),
   ('44444444-0000-4000-8000-00000000000a', '22222222-0000-4000-8000-000000000001', 4, 'x', 'x');
 
+-- Bob's walk below, as if uploaded: `complete_task` only records a photo
+-- that's really in storage.
+insert into storage.objects (bucket_id, name) values
+  ('task-photos', 'bbbbbbbb-0000-4000-8000-000000000002/44444444-0000-4000-8000-00000000000b/5/walk.jpg'),
+  ('task-photos', 'bbbbbbbb-0000-4000-8000-000000000002/44444444-0000-4000-8000-00000000000b/5/walk_thumb.jpg');
+
 -- ---------------------------------------------------------------------------
 -- Which days a task falls on
 -- ---------------------------------------------------------------------------

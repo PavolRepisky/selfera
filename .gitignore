@@ -30,8 +30,11 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files — every kind, since a server key put in any of them
+# must never reach git; only the template is tracked
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
