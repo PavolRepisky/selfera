@@ -2,7 +2,7 @@ import type { CommentEntry } from '@/components/CommentsSheet';
 import type { Friend } from '@/data/content';
 import { orderBySlot } from '@/lib/slots';
 import type { Database } from '@/lib/database.types';
-import { publicUrl, signedUrls } from '@/lib/backend/photos';
+import { publicUrl, signedUrls, taskPhotoSource } from '@/lib/backend/photos';
 import { supabase } from '@/lib/supabase';
 import { timeStamp } from '@/lib/format';
 import { DAY_MS, localDay, startOfToday } from '@/lib/round';
@@ -133,8 +133,8 @@ function dayTasks(
       label: task.label,
       done: true,
       time: timeStamp(new Date(c.completed_at)),
-      photo: urls[c.photo_path] ? { uri: urls[c.photo_path] } : undefined,
-      thumb: urls[c.thumb_path] ? { uri: urls[c.thumb_path] } : undefined,
+      photo: taskPhotoSource(urls, c.photo_path),
+      thumb: taskPhotoSource(urls, c.thumb_path),
       completionId: c.id,
     };
   });

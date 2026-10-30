@@ -144,6 +144,20 @@ export async function signedUrls(paths: readonly string[]): Promise<Record<strin
   return urls;
 }
 
+/**
+ * A task photo to draw, cached under its storage path rather than its link.
+ * Every reload signs a fresh link, which expo-image would take for a new
+ * picture and fetch again; the path never changes, since a retake uploads
+ * under a new name (`freshName`). Undefined while storage won't sign it.
+ */
+export function taskPhotoSource(
+  urls: Record<string, string>,
+  path: string,
+): { uri: string; cacheKey: string } | undefined {
+  const uri = urls[path];
+  return uri ? { uri, cacheKey: path } : undefined;
+}
+
 /** Removes photos a retake or an undo left behind. Best effort: an orphaned
  * file costs a few hundred KB, not a broken screen. */
 export async function removePhotos(bucket: Bucket, paths: readonly string[]) {

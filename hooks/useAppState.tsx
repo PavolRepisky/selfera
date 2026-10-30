@@ -25,6 +25,7 @@ import {
   SIGNED_URL_SECONDS,
   signedUrls,
   storedPath,
+  taskPhotoSource,
   uploadPublicPhoto,
 } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
@@ -408,8 +409,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           [taskId]: {
             done: true,
             time: timeStamp(new Date(c.completed_at)),
-            photo: urls[c.photo_path] ? { uri: urls[c.photo_path] } : null,
-            thumb: urls[c.thumb_path] ? { uri: urls[c.thumb_path] } : null,
+            photo: taskPhotoSource(urls, c.photo_path) ?? null,
+            thumb: taskPhotoSource(urls, c.thumb_path) ?? null,
             photoSeed: null,
             slot: c.slot ?? undefined,
           },

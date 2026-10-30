@@ -178,12 +178,22 @@ export function ShareCoverSheet({ visible, onDismiss, cells, day, totalDays, kic
   };
 
   /** Fetched before anything goes on the stage, so no slide is taken with a
-   * photo still on its way. */
-  const prefetch = () => {
-    const uris = shots.flatMap((cell) =>
-      cell.photo && typeof cell.photo === 'object' && 'uri' in cell.photo && cell.photo.uri ? [cell.photo.uri] : [],
-    );
-    return uris.length ? Image.prefetch(uris, 'memory-disk') : Promise.resolve(true);
+   * photo still on its way. A photo cached under its storage path is loaded
+   * through its source, since `prefetch` only knows links and would file it
+   * under one the stage never asks for. */
+  const prefetch = async () => {
+    const uris: string[] = [];
+    const keyed: { uri: string; cacheKey: string }[] = [];
+    for (const cell of shots) {
+      const photo = cell.photo;
+      if (!photo || typeof photo !== 'object' || !('uri' in photo) || !photo.uri) continue;
+      if ('cacheKey' in photo && photo.cacheKey) keyed.push({ uri: photo.uri, cacheKey: photo.cacheKey });
+      else uris.push(photo.uri);
+    }
+    await Promise.all([
+      uris.length ? Image.prefetch(uris, 'memory-disk') : null,
+      ...keyed.map((source) => Image.loadAsync(source).catch(() => null)),
+    ]);
   };
 
   /** Photos is the phone's; in the browser the library is only a stand-in
