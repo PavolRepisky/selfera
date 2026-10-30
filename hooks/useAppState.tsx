@@ -19,6 +19,7 @@ import {
 import { useSession } from '@/hooks/useSession';
 import * as api from '@/lib/backend/api';
 import { fetchCatalog, type Listing } from '@/lib/backend/catalog';
+import { challengeStrip } from '@/data/content';
 import {
   publicUrl,
   removePhotos,
@@ -30,6 +31,7 @@ import {
 } from '@/lib/backend/photos';
 import { isoDay, timeStamp } from '@/lib/format';
 import { orderBySlot } from '@/lib/slots';
+import { readSnapshot, remotePhoto, writeSnapshot } from '@/lib/snapshot';
 import type { ImageSourcePropType } from '@/lib/imageSource';
 import { DAY_MS, isPosted, localDay, POST_COUNTDOWN_MS, startOfToday } from '@/lib/round';
 import { tasksOn as dueOn, type Schedule } from '@/lib/schedule';
@@ -288,6 +290,62 @@ export const LIVES_PER_CHALLENGE = 3;
  */
 const STAND_IN: Challenge = CHALLENGES[0];
 
+/**
+ * The account as it last stood, saved on the phone (`lib/snapshot`) so the
+ * next launch draws it at once while the server is asked again. Dates and
+ * bundled photos don't survive JSON, so the start goes as `YYYY-MM-DD` and
+ * the presets' photos are put back from `data/` on the way out.
+ */
+interface AccountSnapshot {
+  profile: Profile;
+  avatarPath: string | null;
+  inChallenge: boolean;
+  membershipId: string | null;
+  taskUuids: Record<string, string>;
+  challenge: Challenge;
+  tasks: ChallengeTask[];
+  startDate: string;
+  totalDays: number;
+  progress: Progress;
+  captions: Record<number, string>;
+  postsAt: Record<number, number>;
+  reminders: Reminders;
+  schedule: Schedule;
+  catalog: Listing[];
+}
+
+/** A challenge with only the photos that can be saved; `withPresetPhotos`
+ * undoes it. */
+function savableChallenge(challenge: Challenge): Challenge {
+  const photos = challenge.photos?.flatMap((p) => remotePhoto(p) ?? []);
+  return { ...challenge, photos: photos?.length ? photos : undefined, photoSeeds: [] };
+}
+
+function withPresetPhotos(challenge: Challenge): Challenge {
+  const preset = challengeById(challenge.id);
+  return {
+    ...challenge,
+    joined: preset?.joined ?? challenge.joined,
+    photoSeeds: preset?.photoSeeds ?? [],
+    photos: challenge.photos?.length ? challenge.photos : preset?.photos,
+  };
+}
+
+/** The days as saved: a photo still on its way isn't on the server yet, and
+ * a bundled one is dropped for the reason above. */
+function savableProgress(progress: Progress): Progress {
+  const out: Progress = {};
+  for (const [day, entries] of Object.entries(progress)) {
+    const kept: Record<string, TaskProgress> = {};
+    for (const [taskId, entry] of Object.entries(entries)) {
+      if (entry.pending) continue;
+      kept[taskId] = { ...entry, photo: remotePhoto(entry.photo) ?? null, thumb: remotePhoto(entry.thumb) ?? null };
+    }
+    out[Number(day)] = kept;
+  }
+  return out;
+}
+
 /** Who the app holds before an account has loaded, and after logging out. */
 const NO_PROFILE: Profile = { name: '', handle: '', bio: null, avatarSeed: null, avatar: null };
 
@@ -437,6 +495,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // When the account last loaded, so coming back to the app can tell whether
   // its photo links are about to run out.
   const loadedAt = useRef(0);
+  // Whether what's showing is a real account — saved or loaded — and so
+  // worth saving; the empty state before either never is.
+  const hydrated = useRef(false);
+
+  /** Puts a saved account in place, as `applyAccount` does a loaded one. */
+  const restore = useCallback((saved: AccountSnapshot) => {
+    setProfile(saved.profile);
+    avatarPath.current = saved.avatarPath;
+    membershipId.current = saved.membershipId;
+    setMembership(saved.membershipId);
+    taskUuids.current = saved.taskUuids;
+    setInChallenge(saved.inChallenge);
+    setChallenge(saved.inChallenge ? withPresetPhotos(saved.challenge) : STAND_IN);
+    setTasksState(saved.inChallenge ? saved.tasks : [...STAND_IN.tasks]);
+    setTotalDays(saved.totalDays);
+    setStartDateState(saved.inChallenge ? localDay(saved.startDate) : startOfToday());
+    setProgress(saved.progress);
+    setCaptions(saved.captions);
+    setPostsAt(saved.postsAt);
+    setRemindersState(saved.reminders);
+    setSchedule(saved.schedule);
+    setCatalog(
+      saved.catalog.map((listing) => {
+        const challenge = withPresetPhotos(listing.challenge);
+        return {
+          ...listing,
+          challenge,
+          section: { ...listing.section, photos: challenge.photos ?? challengeStrip(challenge.id) },
+        };
+      }),
+    );
+  }, []);
 
   const reload = useCallback(async () => {
     if (!userId) return;
@@ -450,6 +540,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCatalog(listings);
       setLoadFailed(false);
       loadedAt.current = Date.now();
+      hydrated.current = true;
     } catch {
       setLoadFailed(true);
     }
@@ -464,13 +555,70 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     let live = true;
     setReady(false);
-    reload().finally(() => {
-      if (live) setReady(true);
+    hydrated.current = false;
+    // The saved copy goes up first and lifts the splash; the server's answer
+    // replaces it when it comes. With none saved, the splash waits as before.
+    readSnapshot<AccountSnapshot>('account', userId).then((saved) => {
+      if (!live) return;
+      if (saved) {
+        restore(saved);
+        hydrated.current = true;
+        setReady(true);
+      }
+      reload().finally(() => {
+        if (live) setReady(true);
+      });
     });
     return () => {
       live = false;
     };
-  }, [userId, reload]);
+  }, [userId, reload, restore]);
+
+  // Every change is saved for the next launch, a moment after it settles so
+  // a burst of them writes once.
+  useEffect(() => {
+    if (!userId || !ready || !hydrated.current) return;
+    const timer = setTimeout(() => {
+      writeSnapshot<AccountSnapshot>('account', userId, {
+        profile: { ...profile, avatar: remotePhoto(profile.avatar) ?? null },
+        avatarPath: avatarPath.current,
+        inChallenge,
+        membershipId: membershipIdState,
+        taskUuids: taskUuids.current,
+        challenge: savableChallenge(challenge),
+        tasks,
+        startDate: isoDay(startDate),
+        totalDays,
+        progress: savableProgress(progress),
+        captions,
+        postsAt,
+        reminders,
+        schedule,
+        catalog: catalog.map((listing) => ({
+          ...listing,
+          challenge: savableChallenge(listing.challenge),
+          section: { ...listing.section, photos: [] },
+        })),
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    userId,
+    ready,
+    profile,
+    inChallenge,
+    membershipIdState,
+    challenge,
+    tasks,
+    startDate,
+    totalDays,
+    progress,
+    captions,
+    postsAt,
+    reminders,
+    schedule,
+    catalog,
+  ]);
 
   // The calendar day the app is on. A phone keeps the app alive in the
   // background for hours, so it can't be read once: it moves on at midnight

@@ -2,6 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { useSession } from '@/hooks/useSession';
 import * as social from '@/lib/backend/social';
+import { isoDay } from '@/lib/format';
+import { startOfToday } from '@/lib/round';
+import { readSnapshot, writeSnapshot } from '@/lib/snapshot';
 import type { PastRun, Person, PersonPage, PostStats, Relations } from '@/lib/backend/social';
 import type { CommentEntry } from '@/components/CommentsSheet';
 
@@ -61,6 +64,24 @@ interface SocialState {
 
 const EMPTY_RELATIONS: Relations = { friends: new Set(), outgoing: new Set(), incoming: [], friendList: [] };
 
+/**
+ * Today as Community last showed it, saved on the phone (`lib/snapshot`) so
+ * the next launch draws it at once. It's only good for the day it was saved
+ * on — tomorrow's Community is someone else's day — and holds only what the
+ * server let you see then, so a locked day carries no photo links. Sets
+ * don't survive JSON, so they go as lists.
+ */
+interface SocialSnapshot {
+  day: string;
+  friends: Person[];
+  members: Person[];
+  roundSize: number;
+  relations: Omit<Relations, 'friends' | 'outgoing'> & { friends: string[]; outgoing: string[] };
+  stats: Record<string, PostStats>;
+  seen: string[];
+  unreadActivity: number;
+}
+
 const SocialContext = createContext<SocialState | null>(null);
 
 export function SocialProvider({ children }: { children: ReactNode }) {
@@ -83,6 +104,11 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   statsRef.current = stats;
   const relationsRef = useRef(relations);
   relationsRef.current = relations;
+  // Whether today has come from the server this session, not just the
+  // phone's copy — only then is it saved again.
+  const fresh = useRef(false);
+  // The day that answer was for, which past midnight isn't the clock's.
+  const freshDay = useRef('');
 
   // A new account starts from nothing; nothing of the last one carries over.
   useEffect(() => {
@@ -96,7 +122,48 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     setSeen(new Set());
     setPages({});
     setUnreadActivity(0);
+    fresh.current = false;
+    if (!userId) return;
+    let live = true;
+    readSnapshot<SocialSnapshot>('social', userId).then((saved) => {
+      // The server's answer, if it came first, is newer than any copy.
+      if (!live || fresh.current || !saved || saved.day !== isoDay(startOfToday())) return;
+      setFriends(saved.friends);
+      setMembers(saved.members);
+      setRoundSize(saved.roundSize);
+      setRelations({
+        ...saved.relations,
+        friends: new Set(saved.relations.friends),
+        outgoing: new Set(saved.relations.outgoing),
+      });
+      setStats(saved.stats);
+      setSeen(new Set(saved.seen));
+      setUnreadActivity(saved.unreadActivity);
+      setLoaded(true);
+    });
+    return () => {
+      live = false;
+    };
   }, [userId]);
+
+  // Saved for the next launch once the server has answered, a moment after
+  // things settle so a burst of changes writes once.
+  useEffect(() => {
+    if (!userId || !fresh.current) return;
+    const timer = setTimeout(() => {
+      writeSnapshot<SocialSnapshot>('social', userId, {
+        day: freshDay.current,
+        friends,
+        members,
+        roundSize,
+        relations: { ...relations, friends: [...relations.friends], outgoing: [...relations.outgoing] },
+        stats,
+        seen: [...seen],
+        unreadActivity,
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [userId, friends, members, roundSize, relations, stats, seen, unreadActivity]);
 
   // Its own call, so a count that doesn't load never fails today's feed.
   const refreshActivity = useCallback(async () => {
@@ -132,6 +199,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setStats((now) => ({ ...now, ...f.stats, ...m.stats }));
       setSeen((now) => new Set([...now, ...seenNow]));
       setFailed(false);
+      fresh.current = true;
+      freshDay.current = isoDay(startOfToday());
     } catch {
       setFailed(true);
     } finally {

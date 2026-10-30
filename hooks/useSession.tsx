@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { clearSnapshots } from '@/lib/snapshot';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -25,7 +26,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // A stored session that can't be read is the same as none: sign in again.
       .catch(() => setState({ session: null, ready: true }));
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      // However the session ends — Log out, Delete account, a refresh the
+      // server refuses — what this account last showed leaves the phone too.
+      if (event === 'SIGNED_OUT') clearSnapshots();
       setState({ session, ready: true });
     });
     return () => data.subscription.unsubscribe();
